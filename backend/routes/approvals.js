@@ -5,7 +5,7 @@ const { db } = require('../config/database');
 const { recordAuditEvent } = require('../utils/auditTrail');
 const { emitLoanUpdated, emitBalanceUpdated } = require('../utils/realtime');
 const { ensureClientUserCredentials, ensureRegistrationRequestCredentialColumns } = require('./clients');
-const { sendEmail } = require('../utils/emailService');
+const { sendEmail, sendLoanApprovalEmail, sendLoanRejectionEmail } = require('../utils/emailService');
 
 // Approval thresholds (ETB)
 const APPROVAL_THRESHOLDS = {
@@ -43,7 +43,30 @@ const createApprovalRequest = async (type, entityId, amount, requestedBy, detail
       }
     );
   });
-  
+
+  // Notify approvers by email (best-effort)
+  try {
+    const rolesToNotify = approvalLevel === 'branch_manager' ? ['branch_manager', 'admin'] : ['ceo', 'admin'];
+    db.all(
+      `SELECT email, username, role FROM users WHERE role IN (${rolesToNotify.map(() => '?').join(',')}) AND email IS NOT NULL`,
+      rolesToNotify,
+      async (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const subject = `Approval Required: ${type}`;
+        const text = `An approval request (${approvalId}) of type ${type} requires your review.\n\nRequested by user ID: ${requestedBy}\nAmount: ${amount || 0}\n\nPlease review the request in the admin portal.`;
+        for (const r of rows) {
+          try {
+            await sendEmail(r.email, subject, text);
+          } catch (e) {
+            console.warn('Failed to send approval notification to', r.email, e && e.message);
+          }
+        }
+      }
+    );
+  } catch (e) {
+    // ignore notification errors
+  }
+
   return approvalId;
 };
 
@@ -153,6 +176,19 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 
               user: req.user,
               details: { amount: request.amount, type: request.type, justification: justification || 'Approved' }
             }).catch(() => {});
+            // Notify requester about approval (best-effort)
+            try {
+              db.get('SELECT email, username FROM users WHERE id = ?', [request.requested_by], async (err, userRow) => {
+                if (!err && userRow && userRow.email) {
+                  const subject = `Your request ${id} has been approved`;
+                  const text = `Hello ${userRow.username || ''},\n\nYour approval request (${id}) for ${request.type} has been approved by ${req.user.role}.\n\nRegards,\nEdekise Microfinance`;
+                  try { await sendEmail(userRow.email, subject, text); } catch (e) { console.warn('Failed to send approval notification to requester', e && e.message); }
+                }
+              });
+            } catch (e) {
+              // ignore
+            }
+
             res.json({
               message: 'Request approved successfully',
               execution: result || null
@@ -223,6 +259,20 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('branch_manager', '
             details: { amount: request.amount, type: request.type, reason: reason || 'Rejected' }
           }).catch(() => {});
           console.log(`[AUDIT] Approval request ${id} rejected by ${userRole} (ID: ${userId}) at ${new Date().toISOString()}`);
+
+          // Notify requester about rejection (best-effort)
+          try {
+            db.get('SELECT email, username FROM users WHERE id = ?', [request.requested_by], async (err, userRow) => {
+              if (!err && userRow && userRow.email) {
+                const subject = `Your request ${id} has been rejected`;
+                const text = `Hello ${userRow.username || ''},\n\nYour approval request (${id}) for ${request.type} has been rejected by ${req.user.role}.\nReason: ${reason || 'Not specified'}\n\nRegards,\nEdekise Microfinance`;
+                try { await sendEmail(userRow.email, subject, text); } catch (e) { console.warn('Failed to send rejection notification to requester', e && e.message); }
+              }
+            });
+          } catch (e) {
+            // ignore
+          }
+
           res.json({
             message: 'Request rejected successfully',
             execution: result || null
@@ -875,6 +925,18 @@ async function executeApprovedLoan(request) {
         }
       );
     });
+
+    if (client.email) {
+      try {
+        await sendLoanApprovalEmail({
+          ...loan,
+          client_name: client.name || loan.client_name,
+          client_email: client.email
+        });
+      } catch (emailError) {
+        console.warn('Loan approval email failed:', emailError?.message || emailError);
+      }
+    }
   }
 
   return { loan_id: loanId, status: 'Active', client_id: loan.client_id, amount: loan.amount };
@@ -905,6 +967,28 @@ async function executeRejectedLoan(request, reason) {
     details: { reason, approval_request_id: request.id }
   });
   emitLoanUpdated({ loanId, status: 'Rejected' });
+
+  const loan = await new Promise((resolve, reject) => {
+    db.get(
+      `SELECT la.*, c.name AS client_name, c.email AS client_email
+       FROM loan_accounts la
+       LEFT JOIN clients c ON c.id = la.client_id
+       WHERE la.id = ?`,
+      [loanId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row || null);
+      }
+    );
+  });
+
+  if (loan?.client_email) {
+    try {
+      await sendLoanRejectionEmail(loan, reason);
+    } catch (emailError) {
+      console.warn('Loan rejection email failed:', emailError?.message || emailError);
+    }
+  }
 
   return { loan_id: loanId, status: 'Rejected', reason };
 }

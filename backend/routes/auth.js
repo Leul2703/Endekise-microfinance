@@ -797,11 +797,22 @@ router.post('/client-register', publicKycUpload.fields([
       );
     });
 
-    return res.status(201).json({
-      message: 'Registration submitted successfully. An admin will review your application.',
-      tracking_status: 'Pending Admin Approval',
-      review
-    });
+      // Create an approval request for admin review so approvers are notified
+      try {
+        const { createApprovalRequest } = require('./approvals');
+        // details include client registration info to help approvers
+        const details = { client_id: createdClientId, email: email || null, full_name };
+        // requestedBy is null for public registrations
+        await createApprovalRequest('client_registration', createdClientId, 0, null, details);
+      } catch (e) {
+        console.warn('Failed to create approval request for registration:', e && e.message);
+      }
+
+      return res.status(201).json({
+        message: 'Registration submitted successfully. An admin will review your application.',
+        tracking_status: 'Pending Admin Approval',
+        review
+      });
   } catch (error) {
     console.error('Public client registration error:', error);
     return res.status(500).json({

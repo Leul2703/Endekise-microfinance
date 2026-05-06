@@ -5,6 +5,40 @@ import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { io } from 'socket.io-client';
 
+const LOAN_TYPE_CONFIG = {
+  'Micro Enterprise Loan': {
+    interestRate: 8,
+    minAmount: 50000,
+    maxAmount: 90000,
+    minTermMonths: 12,
+    maxTermMonths: 24
+  },
+  'Individual Business Loan': {
+    interestRate: 7.5,
+    minAmount: 10000,
+    maxAmount: 50000,
+    minTermMonths: 1,
+    maxTermMonths: 1
+  },
+  'Consumption Loan': {
+    interestRate: 9,
+    minAmount: 10000,
+    maxAmount: 100000,
+    organizationLetterRequired: true
+  },
+  'Construction Loan': {
+    interestRate: 12,
+    minAmount: 100000,
+    maxAmount: 500000
+  },
+  'Agricultural Business Loan': {
+    interestRate: 10,
+    minAmount: 100000,
+    maxAmount: 300000,
+    requiredIncomeSources: ['Agriculture']
+  }
+};
+
 const LoanManagement = () => {
   const { success, error, warning } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,9 +64,13 @@ const LoanManagement = () => {
     paymentFrequency: 'Monthly',
     originationDate: new Date().toISOString().split('T')[0],
     purpose: '',
-    guarantors: []
+    guarantors: [],
+    organizationLetterProvided: false
   });
   const [newGuarantor, setNewGuarantor] = useState({ id: '', amount: '' });
+  const [organizationLetterFile, setOrganizationLetterFile] = useState(null);
+  const [organizationLetterUploading, setOrganizationLetterUploading] = useState(false);
+  const [organizationLetterDocumentId, setOrganizationLetterDocumentId] = useState('');
   const [newClientData, setNewClientData] = useState({
     name: '',
     email: '',
@@ -51,6 +89,23 @@ const LoanManagement = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedSavingsAccount = useMemo(
+    () => savingsAccounts.find((acc) => (acc.savings_account_id || acc.account_id || acc.accountId) === newLoanData.savingsAccountId),
+    [savingsAccounts, newLoanData.savingsAccountId]
+  );
+  const selectedClientIncomeSource = String(selectedSavingsAccount?.client_income_source || '').trim();
+  const currentLoanTypeConfig = LOAN_TYPE_CONFIG[newLoanData.type] || null;
+
+  useEffect(() => {
+    const rate = LOAN_TYPE_CONFIG[newLoanData.type]?.interestRate;
+    if (typeof rate === 'number' && Number(newLoanData.interestRate) !== rate) {
+      setNewLoanData((current) => ({
+        ...current,
+        interestRate: String(rate)
+      }));
+    }
+  }, [newLoanData.type, newLoanData.interestRate]);
+
   const [paymentSchedule, setPaymentSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
@@ -78,7 +133,10 @@ const LoanManagement = () => {
   }, []);
 
   useEffect(() => {
-    const socket = io('http://localhost:5000', { transports: ['websocket', 'polling'] });
+    const socketBaseUrl = import.meta.env.VITE_SOCKET_URL
+      || import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '')
+      || window.location.origin;
+    const socket = io(socketBaseUrl, { transports: ['websocket', 'polling'] });
     const onLoanUpdated = () => {
       fetchLoans();
     };
@@ -225,11 +283,85 @@ const LoanManagement = () => {
   };
 
   const handleNewLoan = async () => {
-    if (!newLoanData.clientId || !newLoanData.savingsAccountId || !newLoanData.amount) {
-      warning('Please select a savings account and enter loan amount');
+    if (!newLoanData.clientId || !newLoanData.savingsAccountId || !newLoanData.amount || !newLoanData.term || !newLoanData.interestRate) {
+      warning('Please select a savings account and complete all required loan fields');
       return;
     }
+    if (!selectedSavingsAccount || String(selectedSavingsAccount.status || '').toLowerCase() !== 'active') {
+      warning('Loan creation requires an approved active savings account.');
+      return;
+    }
+    const amount = Number(newLoanData.amount);
+    const term = Number(newLoanData.term);
+    const configured = LOAN_TYPE_CONFIG[newLoanData.type];
+    if (!configured) {
+      warning('Unsupported loan type selected.');
+      return;
+    }
+    if (configured.minAmount && amount < configured.minAmount) {
+      warning(`Minimum amount for ${newLoanData.type} is ${configured.minAmount.toLocaleString()} ETB.`);
+      return;
+    }
+    if (configured.maxAmount && amount > configured.maxAmount) {
+      warning(`Maximum amount for ${newLoanData.type} is ${configured.maxAmount.toLocaleString()} ETB.`);
+      return;
+    }
+    if (configured.minTermMonths && term < configured.minTermMonths) {
+      warning(`Minimum term for ${newLoanData.type} is ${configured.minTermMonths} month(s).`);
+      return;
+    }
+    if (configured.maxTermMonths && term > configured.maxTermMonths) {
+      warning(`Maximum term for ${newLoanData.type} is ${configured.maxTermMonths} month(s).`);
+      return;
+    }
+    if (Number(newLoanData.interestRate) !== configured.interestRate) {
+      warning(`Interest rate for ${newLoanData.type} must be ${configured.interestRate}%.`);
+      return;
+    }
+    let uploadedOrganizationDocId = organizationLetterDocumentId || '';
+    if (configured.organizationLetterRequired && !newLoanData.organizationLetterProvided) {
+      warning('Consumption Loan requires organization letter confirmation before submission.');
+      return;
+    }
+    if (configured.organizationLetterRequired && !uploadedOrganizationDocId) {
+      if (!organizationLetterFile) {
+        warning('Please scan and attach the organization letter (PDF/JPEG) before submission.');
+        return;
+      }
+      if (!newLoanData.clientId) {
+        warning('Select client account before uploading organization letter.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', organizationLetterFile);
+      formData.append('client_id', newLoanData.clientId);
+      formData.append('type', 'Organization Letter');
+
+      try {
+        setOrganizationLetterUploading(true);
+        const uploadResult = await api.uploadLoanDocument(formData);
+        uploadedOrganizationDocId = uploadResult?.id || '';
+        if (!uploadedOrganizationDocId) {
+          throw new Error('Organization letter uploaded but document ID was not returned.');
+        }
+        setOrganizationLetterDocumentId(uploadedOrganizationDocId);
+        success('Organization letter uploaded and linked.');
+      } catch (uploadErr) {
+        error(uploadErr.message || 'Failed to upload organization letter');
+        return;
+      } finally {
+        setOrganizationLetterUploading(false);
+      }
+    }
+    if (Array.isArray(configured.requiredIncomeSources) && configured.requiredIncomeSources.length > 0) {
+      if (!configured.requiredIncomeSources.includes(selectedClientIncomeSource)) {
+        warning(`Selected client is not eligible for ${newLoanData.type}. Required income source: ${configured.requiredIncomeSources.join(', ')}.`);
+        return;
+      }
+    }
     try {
+      setIsSubmitting(true);
       await api.createLoan({
         client_id: newLoanData.clientId,
         savings_account_id: newLoanData.savingsAccountId,
@@ -241,7 +373,9 @@ const LoanManagement = () => {
         paymentFrequency: newLoanData.paymentFrequency,
         originationDate: newLoanData.originationDate,
         purpose: newLoanData.purpose,
-        guarantors: newLoanData.guarantors
+        guarantors: newLoanData.guarantors,
+        organization_letter_provided: newLoanData.organizationLetterProvided,
+        organization_letter_document_id: uploadedOrganizationDocId || undefined
       });
       setShowNewLoanModal(false);
       setNewLoanData({
@@ -255,9 +389,12 @@ const LoanManagement = () => {
         paymentFrequency: 'Monthly',
         originationDate: new Date().toISOString().split('T')[0],
         purpose: '',
-        guarantors: []
+        guarantors: [],
+        organizationLetterProvided: false
       });
       setNewGuarantor({ id: '', amount: '' });
+      setOrganizationLetterFile(null);
+      setOrganizationLetterDocumentId('');
       setNewClientData({
         name: '',
         email: '',
@@ -276,6 +413,8 @@ const LoanManagement = () => {
     } catch (err) {
       console.error('Error creating loan:', err);
       error(err.message || 'Failed to submit loan application');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -740,6 +879,9 @@ const LoanManagement = () => {
               </div>
               {savingsAccounts.length > 0 && (
                 <div className="form-group">
+                  <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.35rem' }}>
+                    {savingsAccounts.length} matching account(s) found.
+                  </small>
                   <label>Select Savings Account <span className="required">*</span></label>
                   <select
                     value={newLoanData.savingsAccountId}
@@ -755,8 +897,12 @@ const LoanManagement = () => {
                   >
                     <option value="">-- Select an account --</option>
                     {savingsAccounts.map((account) => (
-                      <option key={account.account_id} value={account.account_id}>
-                        {account.account_id} - {account.client_name} (Balance: {parseInt(account.balance || 0, 10).toLocaleString()} ETB)
+                      <option
+                        key={account.account_id}
+                        value={account.account_id}
+                        disabled={String(account.status || '').toLowerCase() !== 'active'}
+                      >
+                        {account.account_id} - {account.client_name} (Balance: {parseInt(account.balance || 0, 10).toLocaleString()} ETB, Status: {account.status})
                       </option>
                     ))}
                   </select>
@@ -851,7 +997,8 @@ const LoanManagement = () => {
                 <div className="info-card" style={{ marginBottom: '1rem', background: '#eff6ff', borderColor: '#bfdbfe' }}>
                   <div>
                     <strong>Selected Client:</strong> {newLoanData.clientName}<br />
-                    <strong>Account:</strong> {newLoanData.savingsAccountId}
+                    <strong>Account:</strong> {newLoanData.savingsAccountId}<br />
+                    <strong>Income Source:</strong> {selectedClientIncomeSource || 'Not set'}
                   </div>
                 </div>
               )}
@@ -859,7 +1006,14 @@ const LoanManagement = () => {
                 <label>Loan Type</label>
                 <select
                   value={newLoanData.type}
-                  onChange={(e) => setNewLoanData({ ...newLoanData, type: e.target.value })}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    setNewLoanData({
+                      ...newLoanData,
+                      type: nextType,
+                      interestRate: String(LOAN_TYPE_CONFIG[nextType]?.interestRate ?? newLoanData.interestRate)
+                    });
+                  }}
                 >
                   <option value="Micro Enterprise Loan">Micro Enterprise Loan</option>
                   <option value="Individual Business Loan">Individual Business Loan</option>
@@ -875,19 +1029,33 @@ const LoanManagement = () => {
                   value={newLoanData.amount}
                   onChange={(e) => setNewLoanData({ ...newLoanData, amount: e.target.value })}
                   placeholder="Enter loan amount"
-                  min="1"
+                  min={currentLoanTypeConfig?.minAmount || 1}
+                  max={currentLoanTypeConfig?.maxAmount || undefined}
                   required
                 />
+                {currentLoanTypeConfig?.minAmount && currentLoanTypeConfig?.maxAmount && (
+                  <small style={{ color: '#6b7280' }}>
+                    Allowed: {currentLoanTypeConfig.minAmount.toLocaleString()} - {currentLoanTypeConfig.maxAmount.toLocaleString()} ETB
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>Term (Months) <span className="required">*</span></label>
                 <input
                   type="number"
-                  min="1"
+                  min={currentLoanTypeConfig?.minTermMonths || 1}
+                  max={currentLoanTypeConfig?.maxTermMonths || undefined}
                   value={newLoanData.term}
                   onChange={(e) => setNewLoanData({ ...newLoanData, term: e.target.value })}
                   placeholder="Enter term in months"
                 />
+                {currentLoanTypeConfig?.minTermMonths && currentLoanTypeConfig?.maxTermMonths && (
+                  <small style={{ color: '#6b7280' }}>
+                    Required term: {currentLoanTypeConfig.minTermMonths === currentLoanTypeConfig.maxTermMonths
+                      ? `${currentLoanTypeConfig.minTermMonths} month(s)`
+                      : `${currentLoanTypeConfig.minTermMonths}-${currentLoanTypeConfig.maxTermMonths} months`}
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>Interest Rate (%) <span className="required">*</span></label>
@@ -898,8 +1066,55 @@ const LoanManagement = () => {
                   placeholder="Enter interest rate"
                   min="0"
                   max="30"
+                  step="0.1"
+                  readOnly
                 />
+                {currentLoanTypeConfig?.interestRate && (
+                  <small style={{ color: '#6b7280' }}>Policy rate for {newLoanData.type}: {currentLoanTypeConfig.interestRate}%</small>
+                )}
               </div>
+              {currentLoanTypeConfig?.organizationLetterRequired && (
+                <div className="form-group full-width">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newLoanData.organizationLetterProvided)}
+                      onChange={(e) => setNewLoanData({ ...newLoanData, organizationLetterProvided: e.target.checked })}
+                    />
+                    Organization letter verified and available
+                  </label>
+                  <small style={{ color: '#92400e' }}>
+                    This is required for Consumption Loan applications.
+                  </small>
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <label style={{ fontWeight: 600 }}>Upload scanned organization letter</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                      onChange={(e) => {
+                        setOrganizationLetterFile(e.target.files?.[0] || null);
+                        setOrganizationLetterDocumentId('');
+                      }}
+                    />
+                    <small style={{ color: '#6b7280', display: 'block', marginTop: '0.35rem' }}>
+                      {organizationLetterDocumentId
+                        ? `Uploaded and linked: ${organizationLetterDocumentId}`
+                        : (organizationLetterFile ? `Selected file: ${organizationLetterFile.name}` : 'No document uploaded yet')}
+                    </small>
+                  </div>
+                </div>
+              )}
+              {Array.isArray(currentLoanTypeConfig?.requiredIncomeSources) && currentLoanTypeConfig.requiredIncomeSources.length > 0 && (
+                <div className="info-card" style={{ marginBottom: '1rem', background: '#fefce8', borderColor: '#fde68a' }}>
+                  <div>
+                    <strong>Client eligibility check</strong>
+                    <p style={{ margin: '0.5rem 0 0 0' }}>
+                      Required income source: {currentLoanTypeConfig.requiredIncomeSources.join(', ')}.
+                      {' '}Selected client: {selectedClientIncomeSource || 'Not set'}.
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="form-group">
                 <label>Origination Date</label>
                 <input
@@ -1008,9 +1223,9 @@ const LoanManagement = () => {
                 <button className="btn-secondary" onClick={() => setShowNewLoanModal(false)}>
                   Cancel
                 </button>
-                <button className="btn-primary" onClick={handleNewLoan}>
+                <button className="btn-primary" onClick={handleNewLoan} disabled={isSubmitting || organizationLetterUploading}>
                   <Plus size={18} />
-                  Submit Application
+                  {organizationLetterUploading ? 'Uploading document...' : (isSubmitting ? 'Submitting...' : 'Submit Application')}
                 </button>
               </div>
             </div>

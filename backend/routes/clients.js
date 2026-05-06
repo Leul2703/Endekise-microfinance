@@ -505,14 +505,22 @@ router.get('/loans-list', authenticateToken, authorizeRoles('admin', 'branch_man
 // Get clients with active savings accounts for loan application
 router.get('/savings-accounts', authenticateToken, authorizeRoles('admin', 'branch_manager', 'loan_staff', 'saving_staff'), (req, res) => {
   const { search } = req.query;
-  const searchPattern = search ? `%${search}%` : null;
-  const params = search ? [searchPattern, searchPattern, searchPattern] : [];
+  const normalizedSearch = typeof search === 'string' ? search.trim() : '';
+  const searchPattern = normalizedSearch ? `%${normalizedSearch}%` : null;
+  const normalizedPhonePattern = normalizedSearch
+    ? `%${normalizedSearch.replace(/[\s\-+()]/g, '')}%`
+    : null;
+  const params = normalizedSearch
+    ? [searchPattern, searchPattern, normalizedPhonePattern]
+    : [];
 
   const query = `
     SELECT
       c.id AS client_id,
       c.name AS client_name,
       c.phone AS phone,
+      c.income_source AS client_income_source,
+      c.kyc_status AS client_kyc_status,
       s.id AS account_id,
       s.id AS savings_account_id,
       s.amount AS balance,
@@ -521,7 +529,7 @@ router.get('/savings-accounts', authenticateToken, authorizeRoles('admin', 'bran
     FROM clients c
     JOIN savings_accounts s ON c.id = s.client_id
     WHERE s.status IN ('Active', 'Pending Manager Review', 'Pending')
-    ${search ? 'AND (s.id LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)' : ''}
+    ${normalizedSearch ? "AND (s.id LIKE ? OR lower(c.name) LIKE lower(?) OR replace(replace(replace(replace(replace(c.phone, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE ?)" : ''}
     ORDER BY client_name ASC, account_id ASC
   `;
 
@@ -976,7 +984,25 @@ router.get('/:id', authenticateToken, (req, res) => {
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    res.json(client);
+    // Check for organization letter documents for this client
+    db.get(
+      `SELECT COUNT(*) AS c FROM documents WHERE client_id = ? AND (
+        lower(type) LIKE '%organization%'
+        OR lower(type) LIKE '%org%'
+        OR lower(file_name) LIKE '%organization%'
+        OR lower(file_name) LIKE '%org%'
+        OR lower(type) LIKE '%letter%'
+        OR lower(file_name) LIKE '%letter%'
+      )`,
+      [id],
+      (docErr, row) => {
+        if (docErr) {
+          console.warn('Error checking organization letter documents:', docErr);
+          return res.json({ ...client, hasOrganizationLetter: false });
+        }
+        return res.json({ ...client, hasOrganizationLetter: Boolean(row && row.c > 0) });
+      }
+    );
   });
 });
 

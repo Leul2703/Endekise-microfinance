@@ -204,8 +204,30 @@ router.post('/', authenticateToken, async (req, res) => {
         }
       }
       if (typeMeta.organization_letter_required) {
-        // Expect a flag or document indicator in request body: organization_letter_provided
-        if (!req.body.organization_letter_provided && !req.body.organization_letter_document_id) {
+        // Accept explicit flags or a linked document id, or check uploaded documents for the client
+        const orgProvided = req.body.organization_letter_provided;
+        const orgDocId = req.body.organization_letter_document_id;
+        let orgDocFound = false;
+
+        if (orgProvided || orgDocId) {
+          orgDocFound = true;
+        } else {
+          // Search documents table for likely organization letter for this client
+          const doc = await runQuery(
+            `SELECT id, type, file_name FROM documents WHERE client_id = ? AND (
+              lower(type) LIKE '%organization%'
+              OR lower(type) LIKE '%org%'
+              OR lower(file_name) LIKE '%organization%'
+              OR lower(file_name) LIKE '%org%'
+              OR lower(type) LIKE '%letter%'
+              OR lower(file_name) LIKE '%letter%'
+            ) ORDER BY uploaded_at DESC LIMIT 1`,
+            [client_id]
+          );
+          if (doc) orgDocFound = true;
+        }
+
+        if (!orgDocFound) {
           return res.status(400).json({ error: 'Organization letter is required for this loan type.' });
         }
       }

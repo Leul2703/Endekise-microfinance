@@ -4,6 +4,16 @@ import './AdminPages.css';
 import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
+const BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+
+const LOAN_TYPE_CONFIG = {
+  'Micro Enterprise Loan': { interestRate: 8, minAmount: 50000, maxAmount: 90000, minTermMonths: 12, maxTermMonths: 24 },
+  'Individual Business Loan': { interestRate: 7.5, minAmount: 10000, maxAmount: 50000, minTermMonths: 1, maxTermMonths: 1 },
+  'Consumption Loan': { interestRate: 9, minAmount: 10000, maxAmount: 100000, organizationLetterRequired: true },
+  'Construction Loan': { interestRate: 12, minAmount: 100000, maxAmount: 500000 },
+  'Agricultural Business Loan': { interestRate: 10, minAmount: 100000, maxAmount: 300000, requiredIncomeSources: ['Agriculture'] }
+};
+
 const Loans = () => {
   const { success, error, warning } = useToast();
   const [loans, setLoans] = useState([]);
@@ -24,12 +34,21 @@ const Loans = () => {
   
   const [newLoan, setNewLoan] = useState({
     clientId: '',
+    savingsAccountId: '',
+    clientName: '',
     amount: '',
     type: 'Micro Enterprise Loan',
-    term: '12 months',
+    term: '12',
     interestRate: 8,
-    paymentFrequency: 'Monthly'
+    paymentFrequency: 'Monthly',
+    purpose: '',
+    organizationLetterProvided: false
   });
+  const [accountSearch, setAccountSearch] = useState('');
+  const [savingsAccounts, setSavingsAccounts] = useState([]);
+  const [organizationLetterFile, setOrganizationLetterFile] = useState(null);
+  const [organizationLetterDocumentId, setOrganizationLetterDocumentId] = useState('');
+  const [organizationLetterUploading, setOrganizationLetterUploading] = useState(false);
   
   const [repayAmount, setRepayAmount] = useState('');
   const [interestMonths, setInterestMonths] = useState('1');
@@ -61,44 +80,133 @@ const Loans = () => {
     fetchLoans();
   }, [fetchLoans]);
 
+  useEffect(() => {
+    if (!showApplyModal) return;
+    const loadAccounts = async () => {
+      try {
+        const data = await api.getSavingsAccounts(accountSearch);
+        setSavingsAccounts(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Error loading savings accounts:', err);
+        setSavingsAccounts([]);
+      }
+    };
+    const timer = setTimeout(loadAccounts, 250);
+    return () => clearTimeout(timer);
+  }, [showApplyModal, accountSearch]);
+
   const handleApplyLoan = async () => {
-    if (!newLoan.clientId || !newLoan.amount || parseFloat(newLoan.amount) <= 0) {
-      warning('Client ID and amount are required');
+    if (!newLoan.clientId || !newLoan.savingsAccountId || !newLoan.amount || !newLoan.term) {
+      warning('Client, savings account, amount and term are required');
       return;
     }
-
-    try {
-      const data = await fetch(`http://localhost:5000/api/clients/${newLoan.clientId}/loans/apply`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          amount: parseFloat(newLoan.amount),
-          type: newLoan.type,
-          term: newLoan.term,
-          interest_rate: parseFloat(newLoan.interestRate),
-          payment_frequency: newLoan.paymentFrequency
-        })
-      }).then(res => res.json());
-
-        if (!data.error) {
-        setShowApplyModal(false);
-        setNewLoan({ clientId: '', amount: '', type: 'Micro Enterprise Loan', term: '12 months', interestRate: 8, paymentFrequency: 'Monthly' });
-        fetchLoans();
-        success('Loan application submitted successfully');
-      } else {
-        error(data.error);
+    const configured = LOAN_TYPE_CONFIG[newLoan.type];
+    const amount = Number(newLoan.amount);
+    const term = Number(newLoan.term);
+    const selectedAccount = savingsAccounts.find((acc) => (acc.savings_account_id || acc.account_id) === newLoan.savingsAccountId);
+    const selectedIncomeSource = String(selectedAccount?.client_income_source || '').trim();
+    if (!selectedAccount || String(selectedAccount.status || '').toLowerCase() !== 'active') {
+      warning('Loan application requires an active savings account.');
+      return;
+    }
+    if (configured?.minAmount && amount < configured.minAmount) {
+      warning(`Minimum amount for ${newLoan.type} is ${configured.minAmount.toLocaleString()} ETB.`);
+      return;
+    }
+    if (configured?.maxAmount && amount > configured.maxAmount) {
+      warning(`Maximum amount for ${newLoan.type} is ${configured.maxAmount.toLocaleString()} ETB.`);
+      return;
+    }
+    if (configured?.minTermMonths && term < configured.minTermMonths) {
+      warning(`Minimum term for ${newLoan.type} is ${configured.minTermMonths} month(s).`);
+      return;
+    }
+    if (configured?.maxTermMonths && term > configured.maxTermMonths) {
+      warning(`Maximum term for ${newLoan.type} is ${configured.maxTermMonths} month(s).`);
+      return;
+    }
+    if (Number(newLoan.interestRate) !== configured.interestRate) {
+      warning(`Interest rate for ${newLoan.type} must be ${configured.interestRate}%.`);
+      return;
+    }
+    if (Array.isArray(configured?.requiredIncomeSources) && configured.requiredIncomeSources.length > 0 && !configured.requiredIncomeSources.includes(selectedIncomeSource)) {
+      warning(`Selected client is not eligible for ${newLoan.type}. Required income source: ${configured.requiredIncomeSources.join(', ')}.`);
+      return;
+    }
+    let uploadedOrganizationDocId = organizationLetterDocumentId || '';
+    if (configured?.organizationLetterRequired) {
+      if (!newLoan.organizationLetterProvided) {
+        warning('Consumption loan requires organization letter confirmation.');
+        return;
       }
+      if (!uploadedOrganizationDocId) {
+        if (!organizationLetterFile) {
+          warning('Please attach scanned organization letter (PDF/JPEG).');
+          return;
+        }
+        const formData = new FormData();
+        formData.append('file', organizationLetterFile);
+        formData.append('client_id', newLoan.clientId);
+        formData.append('type', 'Organization Letter');
+        try {
+          setOrganizationLetterUploading(true);
+          const uploadResult = await api.uploadLoanDocument(formData);
+          uploadedOrganizationDocId = uploadResult?.id || '';
+          if (!uploadedOrganizationDocId) throw new Error('Organization letter uploaded but no document id returned.');
+          setOrganizationLetterDocumentId(uploadedOrganizationDocId);
+        } catch (uploadErr) {
+          error(uploadErr.message || 'Failed to upload organization letter');
+          return;
+        } finally {
+          setOrganizationLetterUploading(false);
+        }
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.createLoan({
+        client_id: newLoan.clientId,
+        savings_account_id: newLoan.savingsAccountId,
+        clientName: newLoan.clientName || undefined,
+        type: newLoan.type,
+        amount: amount,
+        term: term,
+        interestRate: Number(newLoan.interestRate),
+        paymentFrequency: newLoan.paymentFrequency,
+        purpose: newLoan.purpose || undefined,
+        organization_letter_provided: newLoan.organizationLetterProvided,
+        organization_letter_document_id: uploadedOrganizationDocId || undefined
+      });
+      setShowApplyModal(false);
+      setNewLoan({
+        clientId: '',
+        savingsAccountId: '',
+        clientName: '',
+        amount: '',
+        type: 'Micro Enterprise Loan',
+        term: '12',
+        interestRate: 8,
+        paymentFrequency: 'Monthly',
+        purpose: '',
+        organizationLetterProvided: false
+      });
+      setAccountSearch('');
+      setSavingsAccounts([]);
+      setOrganizationLetterFile(null);
+      setOrganizationLetterDocumentId('');
+      fetchLoans();
+      success('Loan application submitted successfully');
     } catch (err) {
-      error('Failed to submit loan application');
+      error(err.message || 'Failed to submit loan application');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleApprove = async (loanId) => {
     try {
-      const data = await fetch(`http://localhost:5000/api/clients/loans/${loanId}/approve`, {
+      const data = await fetch(`${BACKEND_BASE_URL}/api/clients/loans/${loanId}/approve`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -131,7 +239,7 @@ const Loans = () => {
 
     setIsSubmitting(true);
     try {
-      const data = await fetch(`http://localhost:5000/api/clients/loans/${rejectLoanId}/reject`, {
+      const data = await fetch(`${BACKEND_BASE_URL}/api/clients/loans/${rejectLoanId}/reject`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -163,7 +271,7 @@ const Loans = () => {
     }
 
     try {
-      const data = await fetch(`http://localhost:5000/api/clients/loans/${selectedLoan.id}/repay`, {
+      const data = await fetch(`${BACKEND_BASE_URL}/api/clients/loans/${selectedLoan.id}/repay`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -189,7 +297,7 @@ const Loans = () => {
     if (!selectedLoan) return;
 
     try {
-      const data = await fetch(`http://localhost:5000/api/clients/loans/${selectedLoan.id}/calculate-interest?months=${interestMonths}`, {
+      const data = await fetch(`${BACKEND_BASE_URL}/api/clients/loans/${selectedLoan.id}/calculate-interest?months=${interestMonths}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       }).then(res => res.json());
 
@@ -205,7 +313,7 @@ const Loans = () => {
 
   const handleViewPaymentHistory = async (loanId) => {
     try {
-      const data = await fetch(`http://localhost:5000/api/clients/loans/${loanId}/payments`, {
+      const data = await fetch(`${BACKEND_BASE_URL}/api/clients/loans/${loanId}/payments`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       }).then(res => res.json());
       setPaymentHistory(Array.isArray(data) ? data : []);
@@ -358,15 +466,53 @@ const Loans = () => {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Client ID <span className="required">*</span></label>
+                <label>Search Savings Account <span className="required">*</span></label>
                 <input
                   type="text"
-                  value={newLoan.clientId}
-                  onChange={(e) => setNewLoan({ ...newLoan, clientId: e.target.value })}
-                  placeholder="Enter client ID"
-                  required
+                  value={accountSearch}
+                  onChange={(e) => setAccountSearch(e.target.value)}
+                  placeholder="Search by account number, client name, or phone"
                 />
               </div>
+              {savingsAccounts.length > 0 && (
+                <div className="form-group">
+                  <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.35rem' }}>
+                    {savingsAccounts.length} matching account(s) found.
+                  </small>
+                  <label>Select Savings Account <span className="required">*</span></label>
+                  <select
+                    value={newLoan.savingsAccountId}
+                    onChange={(e) => {
+                      const selected = savingsAccounts.find((acc) => (acc.account_id || acc.savings_account_id) === e.target.value);
+                      setNewLoan({
+                        ...newLoan,
+                        savingsAccountId: selected?.savings_account_id || e.target.value,
+                        clientId: selected?.client_id || '',
+                        clientName: selected?.client_name || ''
+                      });
+                    }}
+                  >
+                    <option value="">-- Select an account --</option>
+                    {savingsAccounts.map((account) => (
+                      <option
+                        key={account.account_id || account.savings_account_id}
+                        value={account.account_id || account.savings_account_id}
+                        disabled={String(account.status || '').toLowerCase() !== 'active'}
+                      >
+                        {(account.account_id || account.savings_account_id)} - {account.client_name} (Status: {account.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {newLoan.clientName && (
+                <div className="info-card" style={{ marginBottom: '1rem', background: '#eff6ff', borderColor: '#bfdbfe' }}>
+                  <CreditCard size={20} style={{ color: '#1e40af' }} />
+                  <span style={{ color: '#1e40af' }}>
+                    Selected: {newLoan.clientName} ({newLoan.savingsAccountId})
+                  </span>
+                </div>
+              )}
               <div className="form-group">
                 <label>Loan Amount (ETB) <span className="required">*</span></label>
                 <input
@@ -374,7 +520,8 @@ const Loans = () => {
                   value={newLoan.amount}
                   onChange={(e) => setNewLoan({ ...newLoan, amount: e.target.value })}
                   placeholder="Enter loan amount"
-                  min="1"
+                  min={LOAN_TYPE_CONFIG[newLoan.type]?.minAmount || 1}
+                  max={LOAN_TYPE_CONFIG[newLoan.type]?.maxAmount || undefined}
                   required
                 />
               </div>
@@ -382,7 +529,15 @@ const Loans = () => {
                 <label>Loan Type</label>
                 <select
                   value={newLoan.type}
-                  onChange={(e) => setNewLoan({ ...newLoan, type: e.target.value })}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    setNewLoan({
+                      ...newLoan,
+                      type: nextType,
+                      interestRate: LOAN_TYPE_CONFIG[nextType]?.interestRate ?? newLoan.interestRate,
+                      term: String(LOAN_TYPE_CONFIG[nextType]?.minTermMonths || newLoan.term)
+                    });
+                  }}
                 >
                   <option value="Micro Enterprise Loan">Micro Enterprise Loan</option>
                   <option value="Individual Business Loan">Individual Business Loan</option>
@@ -393,15 +548,13 @@ const Loans = () => {
               </div>
               <div className="form-group">
                 <label>Term</label>
-                <select
+                <input
+                  type="number"
                   value={newLoan.term}
                   onChange={(e) => setNewLoan({ ...newLoan, term: e.target.value })}
-                >
-                  <option value="6 months">6 months</option>
-                  <option value="12 months">12 months</option>
-                  <option value="24 months">24 months</option>
-                  <option value="36 months">36 months</option>
-                </select>
+                  min={LOAN_TYPE_CONFIG[newLoan.type]?.minTermMonths || 1}
+                  max={LOAN_TYPE_CONFIG[newLoan.type]?.maxTermMonths || undefined}
+                />
               </div>
               <div className="form-group">
                 <label>Interest Rate (%)</label>
@@ -412,6 +565,8 @@ const Loans = () => {
                   placeholder="Enter interest rate"
                   min="0"
                   max="25"
+                  step="0.1"
+                  readOnly
                 />
               </div>
               <div className="form-group">
@@ -429,13 +584,38 @@ const Loans = () => {
                 <CreditCard size={20} style={{ color: '#1e40af' }} />
                 <span style={{ color: '#1e40af' }}>Client must have an active savings account to apply for a loan</span>
               </div>
+              {LOAN_TYPE_CONFIG[newLoan.type]?.organizationLetterRequired && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newLoan.organizationLetterProvided)}
+                      onChange={(e) => setNewLoan({ ...newLoan, organizationLetterProvided: e.target.checked })}
+                    />
+                    Organization letter verified and available
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                    onChange={(e) => {
+                      setOrganizationLetterFile(e.target.files?.[0] || null);
+                      setOrganizationLetterDocumentId('');
+                    }}
+                  />
+                  <small style={{ color: '#6b7280', display: 'block', marginTop: '0.35rem' }}>
+                    {organizationLetterDocumentId
+                      ? `Uploaded and linked: ${organizationLetterDocumentId}`
+                      : (organizationLetterFile ? `Selected file: ${organizationLetterFile.name}` : 'No document uploaded yet')}
+                  </small>
+                </div>
+              )}
               <div className="modal-actions">
                 <button className="btn-secondary" onClick={() => setShowApplyModal(false)}>
                   Cancel
                 </button>
-                <button className="btn-primary" onClick={handleApplyLoan}>
+                <button className="btn-primary" onClick={handleApplyLoan} disabled={isSubmitting || organizationLetterUploading}>
                   <Plus size={18} />
-                  Submit Application
+                  {organizationLetterUploading ? 'Uploading document...' : (isSubmitting ? 'Submitting...' : 'Submit Application')}
                 </button>
               </div>
             </div>
