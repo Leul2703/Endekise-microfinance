@@ -6,25 +6,40 @@ const { getUserRecord, resolveClientProfileByUser } = require('../utils/clientPr
 
 const SAVINGS_OPTIONS = [
   {
-    type: 'Regular Savings',
-    interest_rate: 5,
-    minimum_amount: 100,
+    type: 'Passbook Saving',
+    interest_rate: 9,
+    minimum_amount: 10000,
+    min_amount: 10000,
+    max_amount: 100000,
     requires_duration: false,
-    description: 'Flexible savings plan for routine deposits.'
+    description: 'Flexible savings account with deposits and withdrawals anytime'
   },
   {
-    type: 'Fixed Deposit',
-    interest_rate: 8,
-    minimum_amount: 1000,
+    type: 'Time Deposit Saving',
+    minimum_amount: 100001,
+    min_amount: 100001,
     requires_duration: true,
-    description: 'Locked savings plan with higher returns for a fixed term.'
+    interest_rules: {
+      '12': 12.5,
+      '24+': 13
+    },
+    description: 'Fixed-term saving with higher returns'
   },
   {
-    type: 'Premium Savings',
-    interest_rate: 7,
-    minimum_amount: 5000,
+    type: 'Growth Term Saving',
+    interest_rate: 10,
+    minimum_amount: 0,
     requires_duration: false,
-    description: 'Higher-balance savings plan with improved interest.'
+    condition: 'fixed monthly deposit',
+    description: 'Monthly disciplined saving'
+  },
+  {
+    type: 'Girls and Child Saving',
+    minimum_amount: 5000,
+    min_amount: 5000,
+    interest_rate: 12.5,
+    requires_duration: false,
+    description: 'Special account for children (especially girls)'
   }
 ];
 
@@ -112,8 +127,9 @@ router.post('/apply', authenticateToken, authorizeRoles('client'), async (req, r
     }
 
     let maturityDate = null;
+    let months = null;
     if (option.requires_duration) {
-      const months = parseInt(duration_months, 10);
+      months = parseInt(duration_months, 10);
       if (!months || months <= 0) {
         return res.status(400).json({ error: 'Duration is required for the selected saving type.' });
       }
@@ -124,13 +140,35 @@ router.post('/apply', authenticateToken, authorizeRoles('client'), async (req, r
       maturityDate = endDate.toISOString().split('T')[0];
     }
 
+    // Determine applicable interest rate (support fixed rate or interest_rules)
+    let appliedInterestRate = option.interest_rate;
+    if ((!appliedInterestRate || appliedInterestRate === null) && option.interest_rules) {
+      // interest_rules format: { '12': 12.5, '24+': 13 }
+      if (months) {
+        if (months >= 24 && option.interest_rules['24+']) {
+          appliedInterestRate = option.interest_rules['24+'];
+        } else if (option.interest_rules[String(months)]) {
+          appliedInterestRate = option.interest_rules[String(months)];
+        } else if (option.interest_rules['12']) {
+          appliedInterestRate = option.interest_rules['12'];
+        } else {
+          // fallback to first available rule
+          const values = Object.values(option.interest_rules);
+          appliedInterestRate = values.length ? values[0] : null;
+        }
+      } else {
+        const values = Object.values(option.interest_rules);
+        appliedInterestRate = values.length ? values[0] : null;
+      }
+    }
+
     const savingsId = `SV-${Date.now()}`;
     const transactionId = `TXN-${Date.now()}`;
 
     await runExec(
       `INSERT INTO savings_accounts (id, client_id, amount, type, interest_rate, maturity_date, status)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [savingsId, client.id, numericAmount, option.type, option.interest_rate, maturityDate, 'Pending']
+      [savingsId, client.id, numericAmount, option.type, appliedInterestRate, maturityDate, 'Pending']
     );
 
     const approvalRequestId = `APR-${Date.now()}`;
@@ -169,7 +207,7 @@ router.post('/apply', authenticateToken, authorizeRoles('client'), async (req, r
         transactionId,
         type: option.type,
         amount: numericAmount,
-        interestRate: option.interest_rate,
+        interestRate: appliedInterestRate,
         maturityDate
       })
     });
@@ -572,3 +610,5 @@ router.post('/:id/submit-approval', authenticateToken, authorizeRoles('saving_st
 });
 
 module.exports = router;
+// Export SAVINGS_OPTIONS for dev/test usage
+module.exports.SAVINGS_OPTIONS = SAVINGS_OPTIONS;

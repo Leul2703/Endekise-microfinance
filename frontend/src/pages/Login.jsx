@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Lock, User, Sparkles, ArrowRight, AlertCircle, Home, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Lock, User, Sparkles, ArrowRight, AlertCircle } from 'lucide-react';
 import './Login.css';
 
 const Login = () => {
@@ -55,13 +55,12 @@ const Login = () => {
         setupToken: result.setupToken || null,
         setup: result.setup || null
       });
+    } else if (result.error && result.error.includes('locked')) {
+      setError(result.error);
     } else {
-      if (result.error && result.error.includes('locked')) {
-        setError(result.error);
-      } else {
-        setError('Invalid Username or Password. Please try again.');
-      }
+      setError('Invalid Username or Password. Please try again.');
     }
+
     setIsSubmitting(false);
   };
 
@@ -86,6 +85,7 @@ const Login = () => {
     } else {
       setError(result.error || 'Two-factor authentication failed');
     }
+
     setIsSubmitting(false);
   };
 
@@ -96,7 +96,19 @@ const Login = () => {
         <div className="gradient-orb orb-2"></div>
         <div className="gradient-orb orb-3"></div>
       </div>
+
       <div className="login-card">
+        <div className="login-utility-bar">
+          <button type="button" className="utility-link" onClick={() => navigate('/')}>
+            <Home size={16} />
+            Landing Page
+          </button>
+          <button type="button" className="utility-link primary" onClick={() => navigate('/register')}>
+            <UserPlus size={16} />
+            Register
+          </button>
+        </div>
+
         <div className="login-header">
           <div className="login-brand-icon">
             <Sparkles size={32} />
@@ -207,7 +219,12 @@ const Login = () => {
         )}
 
         <div className="login-footer">
-          <p>© 2026 Edekise Microfinance System</p>
+          <p className="footer-links">
+            <Link to="/">Back to landing page</Link>
+            <span>•</span>
+            <Link to="/register">Create client account</Link>
+          </p>
+          <p>&copy; 2026 Edekise Microfinance System</p>
         </div>
       </div>
     </div>

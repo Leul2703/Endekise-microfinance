@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { FileText, Upload } from 'lucide-react';
+import { FileText, Upload, ShieldCheck, Files, Clock4 } from 'lucide-react';
 import '../../pages/admin/AdminPages.css';
+import './ClientPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 
@@ -54,7 +55,51 @@ const Documents = () => {
         <p>Upload and track your verification documents.</p>
       </div>
 
-      <div className="dashboard-card" style={{ marginBottom: '1.5rem' }}>
+      <section className="client-hero-card">
+        <div>
+          <span className="client-hero-eyebrow">Document center</span>
+          <h2>Keep verification files organized and easy to track.</h2>
+          <p>Upload identification, income, or address proof and monitor the review status from one page.</p>
+        </div>
+        <div className="client-hero-actions">
+          <div className="client-hero-note">
+            <ShieldCheck size={18} />
+            <span>{documents.filter((doc) => (doc.status || 'Pending') === 'Approved').length} documents approved</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="client-overview-grid">
+        <div className="client-overview-card">
+          <div className="client-overview-icon">
+            <Files size={18} />
+          </div>
+          <div className="client-overview-content">
+            <span>Total uploaded</span>
+            <strong>{documents.length}</strong>
+          </div>
+        </div>
+        <div className="client-overview-card">
+          <div className="client-overview-icon">
+            <Clock4 size={18} />
+          </div>
+          <div className="client-overview-content">
+            <span>Pending review</span>
+            <strong>{documents.filter((doc) => (doc.status || 'Pending') === 'Pending').length}</strong>
+          </div>
+        </div>
+        <div className="client-overview-card">
+          <div className="client-overview-icon">
+            <ShieldCheck size={18} />
+          </div>
+          <div className="client-overview-content">
+            <span>Approved</span>
+            <strong>{documents.filter((doc) => (doc.status || 'Pending') === 'Approved').length}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-card client-upload-card" style={{ marginBottom: '1.5rem' }}>
         <div className="form-group">
           <label>Document Type</label>
           <select value={documentType} onChange={(e) => setDocumentType(e.target.value)}>

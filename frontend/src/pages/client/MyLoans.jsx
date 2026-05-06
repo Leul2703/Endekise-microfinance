@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { DollarSign, Calendar, FileText, TrendingUp, AlertCircle, X, PiggyBank } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { DollarSign, Calendar, FileText, TrendingUp, AlertCircle, X, PiggyBank, CreditCard, Wallet } from 'lucide-react';
 import '../admin/AdminPages.css';
 import './ClientPages.css';
 import { useAuth } from '../../context/AuthContext';
@@ -166,11 +166,52 @@ const MyLoans = () => {
     }
   };
 
+  const loanOverview = useMemo(() => {
+    const totalBalance = loans.reduce((sum, loan) => sum + (Number(loan.balance) || 0), 0);
+    const totalOriginal = loans.reduce((sum, loan) => sum + (Number(loan.amount) || 0), 0);
+    const availableSavings = savings.reduce((sum, account) => sum + (Number(account.amount) || 0), 0);
+
+    return [
+      { icon: CreditCard, label: 'Active loans', value: String(loans.length) },
+      { icon: DollarSign, label: 'Outstanding balance', value: `${totalBalance.toLocaleString()} ETB` },
+      { icon: Wallet, label: 'Original loan value', value: `${totalOriginal.toLocaleString()} ETB` },
+      { icon: PiggyBank, label: 'Savings available for repayment', value: `${availableSavings.toLocaleString()} ETB` }
+    ];
+  }, [loans, savings]);
+
   return (
     <div className="admin-page">
       <div className="page-header">
         <h1>My Loans</h1>
         <p>View and manage your loan accounts</p>
+      </div>
+
+      <section className="client-hero-card">
+        <div>
+          <span className="client-hero-eyebrow">Loan center</span>
+          <h2>Keep repayments clear and easy to follow.</h2>
+          <p>Review active loans, check repayment history, and pay directly from your savings account.</p>
+        </div>
+        <div className="client-hero-actions">
+          <div className="client-hero-note">
+            <AlertCircle size={18} />
+            <span>{user?.name ? `${user.name}, repayments must come from savings.` : 'Repayments must come from savings.'}</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="client-overview-grid">
+        {loanOverview.map((item) => (
+          <div key={item.label} className="client-overview-card">
+            <div className="client-overview-icon">
+              <item.icon size={18} />
+            </div>
+            <div className="client-overview-content">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          </div>
+        ))}
       </div>
 
       {loading ? (
@@ -257,7 +298,7 @@ const MyLoans = () => {
         </div>
       )}
 
-      <div className="info-card">
+      <div className="info-card client-info-banner">
         <div className="info-header">
           <AlertCircle size={24} />
           <h3>Payment Reminders</h3>

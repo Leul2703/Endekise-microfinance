@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, Mail, Phone, MapPin, Camera, Save, Lock, Bell, Upload, FileText, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Save, Lock, Bell, Upload, FileText, AlertCircle, BadgeCheck, ShieldCheck, FolderOpen } from 'lucide-react';
 import '../admin/AdminPages.css';
 import './ClientPages.css';
 import api from '../../utils/api';
@@ -201,6 +201,7 @@ const Profile = () => {
 
   const hasNotificationChanges = JSON.stringify(notifications) !== JSON.stringify(originalNotifications);
   const hasChanges = hasProfileChanges || hasNotificationChanges;
+  const completedProfileChecks = [profile.phone, profile.idNumber, profile.address, profile.incomeSource].filter(Boolean).length;
 
   const handlePasswordChange = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
@@ -247,7 +248,52 @@ const Profile = () => {
           <p style={{ textAlign: 'center', padding: '2rem' }}>Loading client profile...</p>
         </div>
       ) : (
-        <div className="profile-container">
+        <>
+          <section className="client-hero-card">
+            <div>
+              <span className="client-hero-eyebrow">Profile center</span>
+              <h2>Keep your records complete and verified.</h2>
+              <p>Update personal details, manage security, and upload KYC files from one client profile workspace.</p>
+            </div>
+            <div className="client-hero-actions">
+              <div className="client-hero-note">
+                <BadgeCheck size={18} />
+                <span>KYC status: {kycStatus}</span>
+              </div>
+            </div>
+          </section>
+
+          <div className="client-overview-grid">
+            <div className="client-overview-card">
+              <div className="client-overview-icon">
+                <ShieldCheck size={18} />
+              </div>
+              <div className="client-overview-content">
+                <span>Profile completion</span>
+                <strong>{completedProfileChecks}/4 key items ready</strong>
+              </div>
+            </div>
+            <div className="client-overview-card">
+              <div className="client-overview-icon">
+                <FolderOpen size={18} />
+              </div>
+              <div className="client-overview-content">
+                <span>Uploaded documents</span>
+                <strong>{documents.length}</strong>
+              </div>
+            </div>
+            <div className="client-overview-card">
+              <div className="client-overview-icon">
+                <Bell size={18} />
+              </div>
+              <div className="client-overview-content">
+                <span>Active alerts</span>
+                <strong>{Object.values(notifications).filter(Boolean).length}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="profile-container">
           <div className="profile-sidebar">
             <div className="profile-photo">
               <div className="photo-placeholder">
@@ -573,7 +619,8 @@ const Profile = () => {
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

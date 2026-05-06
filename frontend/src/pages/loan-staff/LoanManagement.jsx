@@ -24,9 +24,9 @@ const LoanManagement = () => {
     clientName: '',
     savingsAccountId: '',
     amount: '',
-    type: 'Business Loan',
+    type: 'Micro Enterprise Loan',
     term: '12',
-    interestRate: '12',
+    interestRate: '8',
     paymentFrequency: 'Monthly',
     originationDate: new Date().toISOString().split('T')[0],
     purpose: '',
@@ -249,9 +249,9 @@ const LoanManagement = () => {
         clientName: '',
         savingsAccountId: '',
         amount: '',
-        type: 'Business Loan',
+        type: 'Micro Enterprise Loan',
         term: '12',
-        interestRate: '12',
+        interestRate: '8',
         paymentFrequency: 'Monthly',
         originationDate: new Date().toISOString().split('T')[0],
         purpose: '',
@@ -307,7 +307,7 @@ const LoanManagement = () => {
 
       const accountResult = await api.createClientSavingsAccount(clientResult.client.id, {
         initial_balance: parseFloat(newClientData.initialBalance),
-        type: 'Regular Savings'
+        type: 'Passbook Saving'
       });
 
       const refreshedAccounts = await api.getSavingsAccounts(newClientData.name);
@@ -861,10 +861,11 @@ const LoanManagement = () => {
                   value={newLoanData.type}
                   onChange={(e) => setNewLoanData({ ...newLoanData, type: e.target.value })}
                 >
-                  <option value="Business Loan">Business Loan</option>
-                  <option value="Personal Loan">Personal Loan</option>
-                  <option value="Agricultural Loan">Agricultural Loan</option>
-                  <option value="Education Loan">Education Loan</option>
+                  <option value="Micro Enterprise Loan">Micro Enterprise Loan</option>
+                  <option value="Individual Business Loan">Individual Business Loan</option>
+                  <option value="Consumption Loan">Consumption Loan</option>
+                  <option value="Construction Loan">Construction Loan</option>
+                  <option value="Agricultural Business Loan">Agricultural Business Loan</option>
                 </select>
               </div>
               <div className="form-group">

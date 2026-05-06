@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Shield, TrendingUp, Users, Building2, Zap, Lock } from 'lucide-react';
+import { ArrowRight, Shield, TrendingUp, Users, Building2, Zap, Lock, ChevronRight } from 'lucide-react';
 import './Landing.css';
 
 const Landing = () => {
@@ -8,12 +8,13 @@ const Landing = () => {
   return (
     <div className="landing-page">
       <nav className="landing-nav">
-        <div className="nav-brand">
+        <button type="button" className="nav-brand nav-brand-button" onClick={() => navigate('/')}>
           <div className="brand-icon">
             <img src="/edekise-logo.svg" alt="Edekise logo" className="nav-logo" />
           </div>
           <span>Edekise Microfinance</span>
-        </div>
+        </button>
+
         <div className="nav-actions">
           <button className="btn-ghost" onClick={() => navigate('/register')}>Register</button>
           <button className="btn-ghost" onClick={() => navigate('/login')}>Sign In</button>
@@ -30,31 +31,44 @@ const Landing = () => {
           <div className="gradient-orb orb-2"></div>
           <div className="gradient-orb orb-3"></div>
         </div>
+
         <div className="hero-content">
           <div className="hero-badge">
             <Zap size={16} />
             <span>Trusted by 15,000+ Ethiopians</span>
           </div>
+
           <h1 className="hero-title">
             Empowering Your
             <span className="highlight"> Financial Future</span>
           </h1>
+
           <p className="hero-subtitle">
-            Access affordable loans, secure savings, and personalized financial services designed for your success. 
+            Access affordable loans, secure savings, and personalized financial services designed for your success.
             Join thousands building their dreams with Edekise Microfinance.
           </p>
+
           <div className="hero-buttons">
             <button className="btn-secondary large" onClick={() => navigate('/register')}>
               Register as Client
             </button>
             <button className="btn-primary large" onClick={() => navigate('/login')}>
-              Get Started Free
+              Sign In to Dashboard
               <ArrowRight size={20} />
             </button>
-            <button className="btn-secondary large" onClick={() => navigate('/login')}>
-              Sign In
+          </div>
+
+          <div className="hero-shortcuts">
+            <button className="shortcut-link" onClick={() => navigate('/register')}>
+              New here? Start registration
+              <ChevronRight size={16} />
+            </button>
+            <button className="shortcut-link" onClick={() => navigate('/login')}>
+              Already have an account? Sign in
+              <ChevronRight size={16} />
             </button>
           </div>
+
           <div className="hero-stats">
             <div className="stat-item">
               <div className="stat-number">15K+</div>
@@ -74,6 +88,7 @@ const Landing = () => {
             </div>
           </div>
         </div>
+
         <div className="hero-visual">
           <div className="floating-card card-1">
             <div className="card-icon blue">
@@ -158,32 +173,32 @@ const Landing = () => {
         </div>
         <div className="services-grid">
           <div className="service-card">
-            <div className="service-icon">💰</div>
+            <div className="service-icon">Loans</div>
             <h3>Personal Loans</h3>
             <p>Quick access to funds for education, healthcare, or personal emergencies.</p>
           </div>
           <div className="service-card">
-            <div className="service-icon">🏠</div>
+            <div className="service-icon">Business</div>
             <h3>Business Loans</h3>
             <p>Grow your business with flexible financing options and competitive rates.</p>
           </div>
           <div className="service-card">
-            <div className="service-icon">🌾</div>
+            <div className="service-icon">Agri</div>
             <h3>Agricultural Loans</h3>
             <p>Support for farmers and agricultural businesses with seasonal repayment options.</p>
           </div>
           <div className="service-card">
-            <div className="service-icon">💳</div>
-            <h3>Fixed Deposits</h3>
-            <p>Earn higher interest rates with our fixed deposit savings accounts.</p>
+            <div className="service-icon">Fixed</div>
+            <h3>Time Deposit Saving</h3>
+            <p>Earn higher interest rates with our fixed-term savings accounts.</p>
           </div>
           <div className="service-card">
-            <div className="service-icon">📊</div>
-            <h3>Regular Savings</h3>
+            <div className="service-icon">Save</div>
+            <h3>Passbook Saving</h3>
             <p>Build your savings habit with flexible deposit options and attractive returns.</p>
           </div>
           <div className="service-card">
-            <div className="service-icon">📱</div>
+            <div className="service-icon">Mobile</div>
             <h3>Mobile Banking</h3>
             <p>Manage your accounts from anywhere with our convenient mobile services.</p>
           </div>
@@ -195,7 +210,7 @@ const Landing = () => {
           <h2>Ready to Start Your Financial Journey?</h2>
           <p>Join thousands of satisfied customers who trust Edekise Microfinance for their financial needs.</p>
           <div className="cta-buttons">
-            <button className="btn-primary large" onClick={() => navigate('/login')}>
+            <button className="btn-primary large" onClick={() => navigate('/register')}>
               Open an Account
               <ArrowRight size={20} />
             </button>
@@ -222,10 +237,10 @@ const Landing = () => {
           </div>
           <div className="footer-section">
             <h4>Services</h4>
-            <a href="#">Personal Loans</a>
-            <a href="#">Business Loans</a>
-            <a href="#">Savings Accounts</a>
-            <a href="#">Fixed Deposits</a>
+            <a href="#services">Personal Loans</a>
+            <a href="#services">Business Loans</a>
+            <a href="#services">Savings Accounts</a>
+            <a href="#services">Fixed Deposits</a>
           </div>
           <div className="footer-section">
             <h4>Contact</h4>

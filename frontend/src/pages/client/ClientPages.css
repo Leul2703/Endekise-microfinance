@@ -784,3 +784,266 @@ input:checked + .slider:before {
   color: #6b7280;
   font-size: 1rem;
 }
+
+.client-hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 30%),
+    linear-gradient(135deg, #0f172a 0%, #155e75 100%);
+  color: white;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
+}
+
+.client-hero-card h2 {
+  margin: 0.35rem 0 0.45rem;
+  font-size: 1.55rem;
+}
+
+.client-hero-card p {
+  margin: 0;
+  max-width: 700px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.client-hero-eyebrow {
+  display: inline-flex;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.client-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.client-hero-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ecfeff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.9rem;
+}
+
+.client-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.client-overview-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #dde7f2;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.client-overview-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%);
+  color: #155e75;
+  flex-shrink: 0;
+}
+
+.client-overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.client-overview-content span {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.client-overview-content strong {
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.loan-card,
+.summary-card,
+.savings-card,
+.profile-sidebar,
+.profile-section,
+.client-upload-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 18px;
+  border: 1px solid #dde7f2;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.loan-icon,
+.summary-icon,
+.savings-icon,
+.photo-placeholder,
+input:checked + .slider,
+.btn-primary {
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+}
+
+.loan-payment {
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  border-radius: 14px;
+}
+
+.section-header svg,
+.stat-value {
+  color: #0f766e;
+}
+
+.modal-content {
+  border-radius: 18px;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.28);
+}
+
+.client-info-banner {
+  margin-top: 1.5rem;
+}
+
+.client-upload-card {
+  padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .client-hero-card,
+  .client-hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .client-layout .admin-page .page-header,
+  .client-layout .admin-page .page-actions,
+  .client-layout .admin-page .section-header-with-action,
+  .client-layout .admin-page .table-header,
+  .client-layout .admin-page .modal-actions,
+  .client-layout .admin-page .profile-actions,
+  .client-layout .admin-page .preference-item,
+  .client-layout .admin-page .account-item,
+  .client-layout .admin-page .loan-item,
+  .client-layout .admin-page .activity-item,
+  .client-layout .admin-page .document-item,
+  .client-layout .admin-page .payment-detail-row,
+  .client-layout .admin-page .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .client-layout .admin-page .page-actions,
+  .client-layout .admin-page .modal-actions,
+  .client-layout .admin-page .profile-actions {
+    width: 100%;
+  }
+
+  .client-layout .admin-page .page-actions > *,
+  .client-layout .admin-page .modal-actions > *,
+  .client-layout .admin-page .profile-actions > *,
+  .client-layout .admin-page .loan-actions > *,
+  .client-layout .admin-page .savings-actions > * {
+    width: 100%;
+  }
+
+  .client-layout .admin-page .stats-grid,
+  .client-layout .admin-page .dashboard-grid,
+  .client-layout .admin-page .client-overview-grid,
+  .client-layout .admin-page .savings-summary,
+  .client-layout .admin-page .loans-grid,
+  .client-layout .admin-page .savings-grid,
+  .client-layout .admin-page .action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .client-layout .admin-page .section-card,
+  .client-layout .admin-page .summary-card,
+  .client-layout .admin-page .loan-card,
+  .client-layout .admin-page .savings-card,
+  .client-layout .admin-page .profile-sidebar,
+  .client-layout .admin-page .profile-section,
+  .client-layout .admin-page .dashboard-card,
+  .client-layout .admin-page .info-card,
+  .client-layout .admin-page .modal-content {
+    padding: 1rem;
+  }
+
+  .client-layout .admin-page .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .client-layout .admin-page .data-table {
+    min-width: 620px;
+  }
+
+  .client-layout .admin-page .stat-card,
+  .client-layout .admin-page .summary-card {
+    align-items: flex-start;
+  }
+
+  .client-layout .admin-page .loan-header,
+  .client-layout .admin-page .savings-header,
+  .client-layout .admin-page .loan-payment {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .client-layout .admin-page .loan-actions,
+  .client-layout .admin-page .savings-actions,
+  .client-layout .admin-page .quick-actions {
+    grid-template-columns: 1fr;
+    display: grid;
+    width: 100%;
+  }
+
+  .client-layout .admin-page .quick-action-btn,
+  .client-layout .admin-page .action-btn,
+  .client-layout .admin-page .btn-primary,
+  .client-layout .admin-page .btn-secondary,
+  .client-layout .admin-page .btn-sm {
+    justify-content: center;
+  }
+
+  .client-layout .admin-page .profile-photo {
+    width: 96px;
+    height: 96px;
+  }
+
+  .client-layout .admin-page .form-grid,
+  .client-layout .admin-page .profile-container {
+    grid-template-columns: 1fr;
+  }
+}

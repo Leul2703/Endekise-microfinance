@@ -1,27 +1,30 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  DollarSign, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  Users,
+  DollarSign,
+  LogOut,
   Menu,
   X,
   Building2,
   FileText,
   Settings,
-  TrendingUp,
-  BarChart3
+  BarChart3,
+  ChevronRight,
+  ShieldCheck
 } from 'lucide-react';
-import { useState } from 'react';
 import './Layout.css';
 
 const Layout = () => {
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isClient = user?.role === 'client';
 
   const handleLogout = () => {
     logout();
@@ -69,40 +72,105 @@ const Layout = () => {
     ]
   };
 
+  const dashboardPaths = new Set([
+    '/admin',
+    '/branch-manager',
+    '/loan-staff',
+    '/saving-staff',
+    '/ceo',
+    '/client'
+  ]);
+
   const currentMenu = menuItems[user?.role] || [];
+  const currentPage = useMemo(
+    () => currentMenu.find((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)) || currentMenu[0],
+    [currentMenu, location.pathname]
+  );
+
+  const roleLabel = useMemo(() => {
+    const labels = {
+      admin: 'Administrator',
+      branch_manager: 'Branch Manager',
+      loan_staff: 'Loan Staff',
+      saving_staff: 'Saving Staff',
+      ceo: 'CEO Workspace',
+      client: 'Client Portal'
+    };
+
+    return labels[user?.role] || 'Workspace';
+  }, [user?.role]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isClient) {
+      return undefined;
+    }
+
+    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isClient, sidebarOpen]);
 
   return (
-    <div className="layout">
+    <div className={`layout ${isClient ? 'client-layout' : 'desktop-layout'}`}>
+      {isClient && sidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <img src="/assets/images/logo.png" alt="Edekise Microfinance" className="sidebar-logo-image" />
-          <div className="sidebar-title">
-            <h2>Edekise</h2>
-            <p>Microfinance</p>
-          </div>
+          <button type="button" className="sidebar-brand-button" onClick={() => navigate('/')}>
+            <img src="/assets/images/logo.png" alt="Edekise Microfinance" className="sidebar-logo-image" />
+            <div className="sidebar-title">
+              <h2>Edekise</h2>
+              <p>Microfinance</p>
+            </div>
+          </button>
           <button
             className="close-sidebar"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
           >
             <X size={24} />
           </button>
         </div>
 
+        <div className="sidebar-section-label">Navigation</div>
         <nav className="sidebar-nav">
-          {currentMenu.map((item, index) => (
-            <Link
-              key={index}
+          {currentMenu.map((item) => (
+            <NavLink
+              key={item.path}
               to={item.path}
-              className="nav-item"
+              end={dashboardPaths.has(item.path)}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
               <item.icon size={20} />
               <span>{t(item.labelKey)}</span>
-            </Link>
+              <ChevronRight size={16} className="nav-item-arrow" />
+            </NavLink>
           ))}
         </nav>
 
         <div className="sidebar-footer">
+          <div className="sidebar-role-card">
+            <ShieldCheck size={18} />
+            <div>
+              <strong>{roleLabel}</strong>
+              <span>{user?.company_id ? `Branch ${user.company_id}` : 'Secure access enabled'}</span>
+            </div>
+          </div>
+
           <button onClick={handleLogout} className="logout-button">
             <LogOut size={20} />
             <span>{t('logout')}</span>
@@ -112,36 +180,59 @@ const Layout = () => {
 
       <div className="main-content">
         <header className="topbar">
-          <button 
-            className="menu-toggle"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu size={24} />
-          </button>
-          
+          <div className="topbar-left">
+            {isClient && (
+              <button
+                className="menu-toggle"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu size={24} />
+              </button>
+            )}
+
+            <div className="page-intro">
+              <span className="page-eyebrow">{roleLabel}</span>
+              <h1>{currentPage ? t(currentPage.labelKey) : 'Dashboard'}</h1>
+            </div>
+          </div>
+
           <div className="user-info">
-            <span className="user-name">{user?.name}</span>
-            <span className="user-role">
-              {(user?.company_id ? `${user.company_id} • ` : '')}{user?.role?.replace('_', ' ').toUpperCase()}
-            </span>
+            <div className="user-meta">
+              <span className="user-name">{user?.name}</span>
+              <span className="user-role">
+                {(user?.company_id ? `${user.company_id} • ` : '')}
+                {user?.role?.replace('_', ' ').toUpperCase()}
+              </span>
+            </div>
+
             <select
+              className="language-select"
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              style={{
-                marginLeft: '0.75rem',
-                padding: '0.35rem 0.5rem',
-                borderRadius: '0.5rem',
-                border: '1px solid rgba(255,255,255,0.18)',
-                background: 'rgba(255,255,255,0.10)',
-                color: '#fff'
-              }}
               aria-label={t('language')}
             >
               <option value="en">EN</option>
-              <option value="am">አማ</option>
+              <option value="am">AM</option>
             </select>
           </div>
         </header>
+
+        {isClient && currentMenu.length > 0 && (
+          <div className="client-quick-nav" aria-label="Quick navigation">
+            {currentMenu.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === '/client'}
+                className={({ isActive }) => `client-quick-link${isActive ? ' active' : ''}`}
+              >
+                <item.icon size={16} />
+                <span>{t(item.labelKey)}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
 
         <main className="content">
           <Outlet />

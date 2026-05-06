@@ -350,7 +350,7 @@ async function testEmailConfig() {
   }
 }
 
-module.exports = {
+const emailService = {
   sendEmail,
   sendPaymentReminder,
   sendWelcomeEmail,
@@ -359,4 +359,9 @@ module.exports = {
   sendInterestCreditEmail,
   sendApprovalRequestEmail,
   testEmailConfig
+};
+
+module.exports = {
+  ...emailService,
+  emailService
 };

@@ -144,6 +144,16 @@ app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/loans', rateLimiters.financial, loanRoutes);
 app.use('/api/savings', rateLimiters.financial, savingsRoutes);
+// Expose lightweight dev endpoints when running in development mode
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const devRoutes = require('./routes/dev');
+    app.use('/api/dev', devRoutes);
+    console.log('[DEV] Dev routes mounted at /api/dev');
+  } catch (e) {
+    console.warn('[DEV] Failed to mount dev routes:', e.message || e);
+  }
+}
 app.use('/api/documents', rateLimiters.upload, documentRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/audit', auditRoutes);

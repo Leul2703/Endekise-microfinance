@@ -25,9 +25,9 @@ const Loans = () => {
   const [newLoan, setNewLoan] = useState({
     clientId: '',
     amount: '',
-    type: 'Personal Loan',
+    type: 'Micro Enterprise Loan',
     term: '12 months',
-    interestRate: 12,
+    interestRate: 8,
     paymentFrequency: 'Monthly'
   });
   
@@ -83,9 +83,9 @@ const Loans = () => {
         })
       }).then(res => res.json());
 
-      if (!data.error) {
+        if (!data.error) {
         setShowApplyModal(false);
-        setNewLoan({ clientId: '', amount: '', type: 'Personal Loan', term: '12 months', interestRate: 12, paymentFrequency: 'Monthly' });
+        setNewLoan({ clientId: '', amount: '', type: 'Micro Enterprise Loan', term: '12 months', interestRate: 8, paymentFrequency: 'Monthly' });
         fetchLoans();
         success('Loan application submitted successfully');
       } else {
@@ -384,9 +384,11 @@ const Loans = () => {
                   value={newLoan.type}
                   onChange={(e) => setNewLoan({ ...newLoan, type: e.target.value })}
                 >
-                  <option value="Personal Loan">Personal Loan</option>
-                  <option value="Business Loan">Business Loan</option>
-                  <option value="Agricultural Loan">Agricultural Loan</option>
+                  <option value="Micro Enterprise Loan">Micro Enterprise Loan</option>
+                  <option value="Individual Business Loan">Individual Business Loan</option>
+                  <option value="Consumption Loan">Consumption Loan</option>
+                  <option value="Construction Loan">Construction Loan</option>
+                  <option value="Agricultural Business Loan">Agricultural Business Loan</option>
                 </select>
               </div>
               <div className="form-group">

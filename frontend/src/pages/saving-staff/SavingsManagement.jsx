@@ -23,9 +23,9 @@ const SavingsManagement = () => {
   const [selectedSavings, setSelectedSavings] = useState(null);
   const [newAccountData, setNewAccountData] = useState({
     clientId: '',
-    type: 'Regular Savings',
+    type: 'Passbook Saving',
     amount: '',
-    interestRate: '5',
+    interestRate: '9',
     maturityDate: ''
   });
   const [depositAmount, setDepositAmount] = useState('');
@@ -87,9 +87,9 @@ const SavingsManagement = () => {
       setShowNewAccountModal(false);
       setNewAccountData({
         clientId: '',
-        type: 'Regular Savings',
+        type: 'Passbook Saving',
         amount: '',
-        interestRate: '5',
+        interestRate: '9',
         maturityDate: ''
       });
       fetchSavings();
@@ -186,9 +186,10 @@ const SavingsManagement = () => {
           <Filter size={20} />
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
             <option value="all">All Types</option>
-            <option value="Fixed Deposit">Fixed Deposit</option>
-            <option value="Regular Savings">Regular Savings</option>
-            <option value="Children Savings">Children Savings</option>
+            <option value="Passbook Saving">Passbook Saving</option>
+            <option value="Time Deposit Saving">Time Deposit Saving</option>
+            <option value="Growth Term Saving">Growth Term Saving</option>
+            <option value="Girls and Child Saving">Girls and Child Saving</option>
           </select>
         </div>
 
@@ -284,9 +285,10 @@ const SavingsManagement = () => {
                   value={newAccountData.type}
                   onChange={(e) => setNewAccountData({ ...newAccountData, type: e.target.value })}
                 >
-                  <option value="Regular Savings">Regular Savings</option>
-                  <option value="Fixed Deposit">Fixed Deposit</option>
-                  <option value="Children Savings">Children Savings</option>
+                  <option value="Passbook Saving">Passbook Saving</option>
+                  <option value="Time Deposit Saving">Time Deposit Saving</option>
+                  <option value="Growth Term Saving">Growth Term Saving</option>
+                  <option value="Girls and Child Saving">Girls and Child Saving</option>
                 </select>
               </div>
               <div className="form-group">
@@ -311,7 +313,7 @@ const SavingsManagement = () => {
                   max="20"
                 />
               </div>
-              {newAccountData.type === 'Fixed Deposit' && (
+              {newAccountData.type === 'Time Deposit Saving' && (
                 <div className="form-group">
                   <label>Maturity Date</label>
                   <input

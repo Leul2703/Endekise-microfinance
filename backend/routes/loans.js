@@ -18,12 +18,23 @@ const {
 const { emitLoanUpdated } = require('../utils/realtime');
 
 const LOAN_TYPE_RULES = {
-  'Business Loan': Number(process.env.LOAN_RATE_BUSINESS || 12),
-  'Personal Loan': Number(process.env.LOAN_RATE_PERSONAL || 14),
-  'Agricultural Loan': Number(process.env.LOAN_RATE_AGRICULTURAL || 10),
-  'Education Loan': Number(process.env.LOAN_RATE_EDUCATION || 8),
-  'Emergency Loan': Number(process.env.LOAN_RATE_EMERGENCY || 15)
+  'Micro Enterprise Loan': Number(process.env.LOAN_RATE_MICRO_ENTERPRISE || 8),
+  'Individual Business Loan': Number(process.env.LOAN_RATE_INDIVIDUAL_BUSINESS || 7.5),
+  'Consumption Loan': Number(process.env.LOAN_RATE_CONSUMPTION || 9),
+  'Construction Loan': Number(process.env.LOAN_RATE_CONSTRUCTION || 12),
+  'Agricultural Business Loan': Number(process.env.LOAN_RATE_AGRICULTURAL_BUSINESS || 10)
 };
+
+const LOAN_TYPE_META = {
+  'Micro Enterprise Loan': { min_amount: 50000, max_amount: 90000, repayment_min_months: 12, repayment_max_months: 24, description: 'Small business support' },
+  'Individual Business Loan': { min_amount: 10000, max_amount: 50000, repayment_min_months: 1, repayment_max_months: 1, description: 'Short-term business loan' },
+  'Consumption Loan': { min_amount: 10000, max_amount: 100000, organization_letter_required: true, description: 'Personal use loan' },
+  'Construction Loan': { min_amount: 100000, max_amount: 500000, description: 'Housing/construction financing' },
+  'Agricultural Business Loan': { min_amount: 100000, max_amount: 300000, description: 'Farming/agriculture support' }
+};
+// Export loan type metadata for dev/test usage
+module.exports.LOAN_TYPE_RULES = LOAN_TYPE_RULES;
+module.exports.LOAN_TYPE_META = LOAN_TYPE_META;
 
 const syncLoanStatusesFromSchedule = async () => {
   await runExec(
@@ -176,6 +187,28 @@ router.post('/', authenticateToken, async (req, res) => {
         error: `Interest rate for ${normalizedType} must match company policy (${requiredRate}%).`,
         expected_interest_rate: requiredRate
       });
+    }
+    // Validate amount and term against loan type metadata (min/max limits, repayment ranges)
+    const typeMeta = LOAN_TYPE_META[normalizedType];
+    if (typeMeta) {
+      if (typeMeta.min_amount && loanAmount < typeMeta.min_amount) {
+        return res.status(400).json({ error: `Minimum amount for ${normalizedType} is ${typeMeta.min_amount} ETB.` });
+      }
+      if (typeMeta.max_amount && loanAmount > typeMeta.max_amount) {
+        return res.status(400).json({ error: `Maximum amount for ${normalizedType} is ${typeMeta.max_amount} ETB.` });
+      }
+      if (typeMeta.repayment_min_months && typeMeta.repayment_max_months && parsedTerm) {
+        const termMonths = Number(parsedTerm);
+        if (termMonths < typeMeta.repayment_min_months || termMonths > typeMeta.repayment_max_months) {
+          return res.status(400).json({ error: `Repayment period for ${normalizedType} must be between ${typeMeta.repayment_min_months} and ${typeMeta.repayment_max_months} months.` });
+        }
+      }
+      if (typeMeta.organization_letter_required) {
+        // Expect a flag or document indicator in request body: organization_letter_provided
+        if (!req.body.organization_letter_provided && !req.body.organization_letter_document_id) {
+          return res.status(400).json({ error: 'Organization letter is required for this loan type.' });
+        }
+      }
     }
     const isHighValueLoan = loanAmount > HIGH_VALUE_THRESHOLD;
     const createdByAdmin = req.user.role === 'admin';
@@ -856,3 +889,6 @@ router.post('/:id/escalate-ceo', authenticateToken, authorizeRoles('branch_manag
 });
 
 module.exports = router;
+// Re-export loan type metadata for dev/test usage (attached after router export)
+module.exports.LOAN_TYPE_RULES = LOAN_TYPE_RULES;
+module.exports.LOAN_TYPE_META = LOAN_TYPE_META;

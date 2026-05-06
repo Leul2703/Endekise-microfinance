@@ -4,7 +4,6 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { db } = require('../config/database');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const { createApprovalRequest, getApprovalLevel } = require('./approvals');
 const { assertClientKycEligible } = require('../utils/compliance');
 const { recordAuditEvent } = require('../utils/auditTrail');
 const { withTransaction } = require('../utils/transactionWrapper');
@@ -1088,6 +1087,7 @@ router.post('/:clientId/accounts/savings', authenticateToken, authorizeRoles('ad
 
     let approvalRequestId = null;
     if (requiresApproval) {
+      const { createApprovalRequest } = require('./approvals');
       approvalRequestId = await createApprovalRequest(
         'account_creation',
         accountId,
@@ -1338,6 +1338,7 @@ router.post('/accounts/:accountId/deposit', authenticateToken, authorizeRoles('a
     }
 
     // Check if amount requires approval (large transactions)
+    const { createApprovalRequest, getApprovalLevel } = require('./approvals');
     const approvalLevel = getApprovalLevel(amount);
     if (approvalLevel === 'ceo') {
       // Create approval request instead of executing immediately
@@ -1433,6 +1434,7 @@ router.post('/accounts/:accountId/withdraw', authenticateToken, authorizeRoles('
     }
 
     // Check if amount requires approval (large transactions)
+    const { createApprovalRequest, getApprovalLevel } = require('./approvals');
     const approvalLevel = getApprovalLevel(amount);
     if (approvalLevel === 'ceo') {
       // Create approval request instead of executing immediately

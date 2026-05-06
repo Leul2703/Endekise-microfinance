@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { db } = require('../config/database');
-const { emailService } = require('../utils/emailService');
+const { sendEmail } = require('../utils/emailService');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 
 /**
@@ -75,7 +75,7 @@ For security, do not share this link with anyone.`;
             <p>For security, do not share this link with anyone.</p>
           `;
 
-          emailService.sendEmail(email, 'Password Reset Request - Edekise Microfinance', emailText, emailHtml)
+          sendEmail(email, 'Password Reset Request - Edekise Microfinance', emailText, emailHtml)
             .then((result) => {
               if (!result.success) {
                 console.error('Failed to send reset email:', result.error);
@@ -194,7 +194,7 @@ If you did not initiate this change, please contact support immediately.`;
               <p>If you did not initiate this change, please contact support immediately.</p>
             `;
 
-            emailService.sendEmail(user.email, 'Password Reset Successful - Edekise Microfinance', confirmText, confirmHtml)
+            sendEmail(user.email, 'Password Reset Successful - Edekise Microfinance', confirmText, confirmHtml)
               .then((result) => {
                 if (!result.success) {
                   console.error('Failed to send confirmation email:', result.error);

@@ -26,6 +26,13 @@
   font-weight: 700;
 }
 
+.nav-brand-button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
 .brand-icon {
   width: 40px;
   height: 40px;
@@ -246,6 +253,31 @@
   gap: 1rem;
   margin-bottom: 3rem;
   animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.hero-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin: -1rem 0 2rem;
+}
+
+.shortcut-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shortcut-link:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
 }
 
 .hero-stats {
@@ -474,7 +506,18 @@
 }
 
 .service-icon {
-  font-size: 3rem;
+  min-width: 72px;
+  min-height: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%);
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   margin-bottom: 1rem;
 }
 
@@ -820,6 +863,15 @@
   .hero-buttons {
     flex-direction: column;
     width: 100%;
+  }
+
+  .hero-shortcuts {
+    flex-direction: column;
+  }
+
+  .shortcut-link {
+    width: 100%;
+    justify-content: center;
   }
 
   .hero-buttons button {

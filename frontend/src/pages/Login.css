@@ -72,6 +72,39 @@
   z-index: 1;
 }
 
+.login-utility-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.utility-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #dbe3ee;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.utility-link:hover {
+  background: #eef6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.utility-link.primary {
+  background: linear-gradient(135deg, #dcfce7 0%, #ccfbf1 100%);
+  border-color: #86efac;
+  color: #166534;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -307,6 +340,24 @@
   font-size: 0.875rem;
 }
 
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
 .demo-credentials {
   margin-top: 1.5rem;
   padding: 1rem;
@@ -384,6 +435,14 @@
     padding: 2rem 1.5rem;
     max-width: 100%;
     margin: 0 1rem;
+  }
+
+  .login-utility-bar {
+    flex-direction: column;
+  }
+
+  .utility-link {
+    justify-content: center;
   }
 
   .register-card {

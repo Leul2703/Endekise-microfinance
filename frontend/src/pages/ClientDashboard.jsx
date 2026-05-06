@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, DollarSign, Eye, FileText, PiggyBank, Upload } from 'lucide-react';
+import { Calendar, DollarSign, Eye, FileText, PiggyBank, Upload, ArrowRight, Wallet, BellRing } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import './Dashboard.css';
+import './client/ClientPages.css';
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString()} ETB`;
 
@@ -61,6 +62,32 @@ const ClientDashboard = () => {
     ];
   }, [activeSavingsRows, documents, loanRows]);
 
+  const highlightItems = useMemo(() => {
+    return [
+      {
+        icon: Wallet,
+        title: 'Available savings',
+        value: formatCurrency(activeSavingsRows.reduce((sum, account) => sum + (Number(account.amount) || 0), 0)),
+        action: 'View savings',
+        onClick: () => navigate('/client/savings')
+      },
+      {
+        icon: Calendar,
+        title: 'Loan accounts',
+        value: `${loanRows.length} active`,
+        action: 'Check loans',
+        onClick: () => navigate('/client/loans')
+      },
+      {
+        icon: BellRing,
+        title: 'Document follow-up',
+        value: `${documents.filter((doc) => doc.status === 'Pending').length} pending`,
+        action: 'Open documents',
+        onClick: () => navigate('/client/documents')
+      }
+    ];
+  }, [activeSavingsRows, documents, loanRows, navigate]);
+
   const handleViewBalance = async () => {
     try {
       const summary = await api.getMyBalanceSummary();
@@ -93,6 +120,39 @@ const ClientDashboard = () => {
         <div style={{ textAlign: 'center', padding: '3rem' }}>Loading dashboard data...</div>
       ) : (
         <div>
+          <div className="client-spotlight">
+            <div>
+              <span className="client-spotlight-label">Today at a glance</span>
+              <h2>Everything important is one tap away.</h2>
+              <p>Review balances, continue loan follow-up, and manage documents from a simpler client home screen.</p>
+            </div>
+            <div className="client-spotlight-actions">
+              <button className="action-btn primary" onClick={handleViewBalance}>
+                <Eye size={20} />
+                View Balance
+              </button>
+              <button className="action-btn secondary" onClick={() => navigate('/client/profile')}>
+                <Upload size={20} />
+                Update Profile
+              </button>
+            </div>
+          </div>
+
+          <div className="client-highlights">
+            {highlightItems.map((item) => (
+              <button key={item.title} type="button" className="client-highlight-card" onClick={item.onClick}>
+                <div className="client-highlight-icon">
+                  <item.icon size={20} />
+                </div>
+                <div className="client-highlight-content">
+                  <span>{item.title}</span>
+                  <strong>{item.value}</strong>
+                </div>
+                <ArrowRight size={18} className="client-highlight-arrow" />
+              </button>
+            ))}
+          </div>
+
           <div className="stats-grid">
             {stats.map((stat, index) => (
               <div key={index} className="stat-card">

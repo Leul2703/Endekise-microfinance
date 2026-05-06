@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { PiggyBank, TrendingUp, Plus, Download, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { PiggyBank, TrendingUp, Plus, Download, X, Wallet, Landmark, FileText } from 'lucide-react';
 import '../admin/AdminPages.css';
 import './ClientPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 
 const initialSavingForm = {
-  type: 'Regular Savings',
+  type: 'Passbook Saving',
   amount: '',
   duration_months: '',
   description: ''
@@ -207,11 +207,57 @@ const MySavings = () => {
     ) : null
   );
 
+  const savingsOverview = useMemo(() => {
+    const totalBalance = savings.reduce((sum, saving) => sum + (Number(saving.amount) || 0), 0);
+    const projectedInterest = savings.reduce(
+      (sum, saving) => sum + ((Number(saving.amount) || 0) * ((Number(saving.interest_rate) || 0) / 100)),
+      0
+    );
+
+    return [
+      { icon: Wallet, label: 'Total balance', value: `${totalBalance.toLocaleString()} ETB` },
+      { icon: PiggyBank, label: 'Active savings accounts', value: String(savings.length) },
+      { icon: Landmark, label: 'Projected interest', value: `${projectedInterest.toLocaleString()} ETB` },
+      { icon: FileText, label: 'Recent transactions', value: String(transactions.length) }
+    ];
+  }, [savings, transactions]);
+
   return (
     <div className="admin-page">
       <div className="page-header">
         <h1>My Savings</h1>
         <p>View your balances, open new savings schemes, and request withdrawals</p>
+      </div>
+
+      <section className="client-hero-card">
+        <div>
+          <span className="client-hero-eyebrow">Savings center</span>
+          <h2>Track your savings growth in one place.</h2>
+          <p>Open a new saving scheme, download statements, and review transactions without digging through multiple sections.</p>
+        </div>
+        <div className="client-hero-actions">
+          <button className="btn-primary" onClick={() => {
+            resetSavingForm();
+            setShowCreateSavingsModal(true);
+          }}>
+            <Plus size={18} />
+            Open Saving Scheme
+          </button>
+        </div>
+      </section>
+
+      <div className="client-overview-grid">
+        {savingsOverview.map((item) => (
+          <div key={item.label} className="client-overview-card">
+            <div className="client-overview-icon">
+              <item.icon size={18} />
+            </div>
+            <div className="client-overview-content">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="page-actions" style={{ marginBottom: '1.5rem' }}>

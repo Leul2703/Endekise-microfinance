@@ -36,7 +36,7 @@ const Clients = () => {
   const [newAccount, setNewAccount] = useState({
     type: 'savings',
     initial_balance: '',
-    account_type: 'Regular Savings'
+    account_type: 'Passbook Saving'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteClientModal, setShowDeleteClientModal] = useState(false);
@@ -253,7 +253,7 @@ const Clients = () => {
 
   const handleAddAccount = (client) => {
     setSelectedClient(client);
-    setNewAccount({ type: 'savings', initial_balance: '', account_type: 'Regular Savings' });
+    setNewAccount({ type: 'savings', initial_balance: '', account_type: 'Passbook Saving' });
     setShowAddAccountModal(true);
   };
 
@@ -273,14 +273,14 @@ const Clients = () => {
       } else {
         data = await api.createClientLoanAccount(selectedClient.id, {
           amount: parseFloat(newAccount.initial_balance),
-          type: 'Personal Loan',
+          type: 'Micro Enterprise Loan',
           term: '12',
-          interest_rate: 12
+          interest_rate: 8
         });
       }
 
       setShowAddAccountModal(false);
-      setNewAccount({ type: 'savings', initial_balance: '', account_type: 'Regular Savings' });
+      setNewAccount({ type: 'savings', initial_balance: '', account_type: 'Passbook Saving' });
       fetchClientAccounts(selectedClient.id);
 
       if (data?.requires_approval) {
@@ -838,9 +838,10 @@ const Clients = () => {
                     value={newAccount.account_type}
                     onChange={(e) => setNewAccount({ ...newAccount, account_type: e.target.value })}
                   >
-                    <option value="Regular Savings">Regular Savings</option>
-                    <option value="Fixed Deposit">Fixed Deposit</option>
-                    <option value="Children Savings">Children Savings</option>
+                    <option value="Passbook Saving">Passbook Saving</option>
+                    <option value="Time Deposit Saving">Time Deposit Saving</option>
+                    <option value="Growth Term Saving">Growth Term Saving</option>
+                    <option value="Girls and Child Saving">Girls and Child Saving</option>
                   </select>
                 </div>
               )}

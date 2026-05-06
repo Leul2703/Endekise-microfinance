@@ -29,6 +29,109 @@
   font-size: 1rem;
 }
 
+.client-spotlight {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.18), transparent 30%),
+    linear-gradient(135deg, #0f172a 0%, #0f766e 100%);
+  color: white;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.client-spotlight h2 {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 1.6rem;
+}
+
+.client-spotlight p {
+  margin: 0;
+  max-width: 620px;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.client-spotlight-label {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.client-spotlight-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.client-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.client-highlight-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  text-align: left;
+}
+
+.client-highlight-card:hover {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+}
+
+.client-highlight-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%);
+  color: #0f766e;
+  flex-shrink: 0;
+}
+
+.client-highlight-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.client-highlight-content span {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.client-highlight-content strong {
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.client-highlight-arrow {
+  color: #94a3b8;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -90,6 +193,16 @@
 }
 
 @media (max-width: 768px) {
+  .client-spotlight,
+  .client-spotlight-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .client-highlights {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-sections {
     grid-template-columns: 1fr;
   }
