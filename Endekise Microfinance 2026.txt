@@ -1,0 +1,5031 @@
+﻿Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+HAWASSA UNIVERSITY 
+
+ INSTITUTION OF TECHNOLOGY  
+DEPARTMENT OF INFORMATION SYSTEM 
+
+FINAL YEAR PROJECT-1 
+TITLE: EDEKISE MICROFINANCE  
+
+ 
+
+MEMBERS:    ID 
+
+1. LEUL GIZAW GEBRE                          NaScR/0883/15   
+2. KIDIST GETU TADESSE                NaScR/0844/15  
+3. MIHRETU HIZKEL SHUKE        NaScR/1035/15 
+4. ILIHAM SIRAJ MOHAMMEDD            NaScR/0767 /15 
+ 
+ 
+ 
+
+PROJECT ADVISOR : MR ABINET T. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+JANUARY 1,2025
+
+ I
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Declaration 
+
+We, the undersigned students of Hawassa University, declare that this Final Year Project report 
+entitled Endekise Microfinance is the result of our own work. The report is submitted for the in 
+partial fulfillment of the requirements for the degree of bachlor of science in Information System 
+program. 
+ 
+ 
+ 
+ 
+
+1. LEUL GIZAW GEBRE- NaScR/0883/15 
+
+   
+
+2. KIDIST GETU TADESS -NaScR/0844/15 
+
+  
+
+3. MIHRETU HIZKEL SHUKE -NaScR/1035/15 
+
+ 
+ 
+
+4. ILIHAM SIRAJ MOHAMMEDD -NaScR/0767 /15 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+We affirm that this work has not been submitted elsewhere for any other academic purpose, and 
+the sources of information used have been duly acknowledged. 
+ 
+
+Submission Date: January , 2025
+
+ II
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Advisor's Approval 
+This is to certify that the Final Year Project report entitled Edekise Microfinance has been reviewed and 
+approved for submission by the following mentor: 
+ 
+
+Mr. Abinet T.                                                                                                   Date : 
+
+ 
+
+Advisor, Hawassa University
+
+ III
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Examiner's Approval 
+This is to certify that the Final Year Project report entitled "Edekise Microfinance" has been reviewed, 
+evaluated, and approved by the following Examiners: 
+ 
+ 
+ 
+Examiner 1:                                                       Signature:                                        Date: 
+ 
+ 
+ 
+ 
+Examiner 2:                                                       Signature:                                        Date: 
+ 
+ 
+ 
+ 
+ 
+Examiner 3:                                                       Signature:                                         Date:
+
+ IV
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+List Of Table 
+Table 1 . System Requirements  ........................................................................................................................... 11 
+Table 2 .Cost Estimation ...................................................................................................................................... 14 
+Table 3 .project schedule ..................................................................................................................................... 15 
+Table 4 . Use-case scenario for login to the system ............................................................................................ 31 
+Table 5 .Use-case scenario for user ..................................................................................................................... 32 
+Table 6 . Use-case scenario for  New Loan Account Setup .................................................................................. 33 
+Table 7 .Use-case scenario for branch manager to approve Saving Account Request ........................................ 34 
+Table 8 .Use-case scenario for loan staff request loan statement ...................................................................... 35 
+Table 9 .Use-case scenario for saving staff request approval.............................................................................. 36 
+Table 10 .Use-case scenario for branch approve loan statement ....................................................................... 37 
+Table 11 .Use-case scenario for head CEO to manage account........................................................................... 38 
+Table 12 .Use-case scenario for branch  request >100K loan account ................................................................ 39 
+Table 13 .Use-case scenario for Admin to Delete Account ................................................................................. 40 
+Table 14 .Use-case scenario for head CEO approve branch request ................................................................... 41 
+Table 15 .Use-case scenario for client request balance update .......................................................................... 42 
+Table 16 . Use-case scenario for loan staff upload loan doc ............................................................................... 43 
+Table 17 .Use-case scenario to logout ................................................................................................................. 44 
+Table 18 .Size and Performance .......................................................................................................................... 80 
+Table 19 .ActorResponsibilities ............................................................................................................................ 82 
+Table 20 .Client Table .......................................................................................................................................... 89 
+Table 21 .LoanAccount Table ............................................................................................................................... 89 
+Table 22 .PaymentSchedule Table ....................................................................................................................... 90 
+Table 23 .Savings Account Table .......................................................................................................................... 90 
+Table 24 .Transaction Table ................................................................................................................................. 91 
+Table 25 .Staff  Table ........................................................................................................................................... 91 
+Table 26 .Admin Table ......................................................................................................................................... 91 
+Table 27 .Admin Approval Table .......................................................................................................................... 92 
+Table 28 .Email Log Table .................................................................................................................................... 92 
+Table 29 .Branch Table ........................................................................................................................................ 92 
+Table 30 .Relationship and Cardinality Constraint Between Entities .................................................................. 93 
+Table 31 .Primary Keys  and Foreign Keys ........................................................................................................... 93 
+Table 32 .Database Constraint ............................................................................................................................. 95 
+Table 33 .Client Table (1NF) ................................................................................................................................. 96 
+Table 34 .LoanAccount Table  .............................................................................................................................. 96 
+Table 35 .Transaction Table (1NF) ....................................................................................................................... 96 
+Table 36 .PaymentSchedule Table (1NF) ............................................................................................................. 96 
+Table 37 .Database Constraint For 2F .................................................................................................................. 97 
+Table 38 . 2NF Violation and Resolution .............................................................................................................. 97 
+Table 39 .Client Table (2NF) ................................................................................................................................. 97 
+Table 40 .LoanAccount Table (2NF) ..................................................................................................................... 97 
+Table 41 .Database Constraint For 3F .................................................................................................................. 98 
+Table 42 . 3NF Violation and Resolution .............................................................................................................. 98 
+Table 43 .Branch Table (3NF) ............................................................................................................................... 98 
+Table 44 .Staff Table (3NF) .................................................................................................................................. 98 
+Table 45 .LoanAccount Table (3NF) ..................................................................................................................... 98 
+
+ 
+ 
+
+ V
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+List Of Figure 
+Figure 1 .Gannt chart ........................................................................................................................................... 15 
+Figure 2 .Use case diagram  ................................................................................................................................. 29 
+Figure 3 .sequence diagram for login .................................................................................................................. 45 
+Figure 4 . Sequenes diagram of client request .................................................................................................... 46 
+Figure 5 .sequenes diagram of CEO approval request ......................................................................................... 47 
+Figure 6 .sequenes diagram of client doc validation ........................................................................................... 48 
+Figure 7 . Sequenes diagram of request >1ook loan request .............................................................................. 49 
+Figure 8 .Sequenes diagram of staff request approval or rejection .................................................................... 50 
+Figure 9 .Sequenes diagram to start loan account .............................................................................................. 51 
+Figure 10 .Sequenes diagram for enter credentials............................................................................................. 52 
+Figure 11 .Sequence diagram of loan doc validation ........................................................................................... 53 
+Figure 12 .Sequence diagram of client update request ....................................................................................... 54 
+Figure 13 .Sequence diagram of logout  .............................................................................................................. 55 
+Figure 14 . Activity diagram of login .................................................................................................................... 57 
+Figure 15 .Activity diagram of saving account request ........................................................................................ 58 
+Figure 16 .Activity diagram of client upload data ................................................................................................ 59 
+Figure 17 . Activity diagram of loan data upload ................................................................................................. 60 
+Figure 18 .Activity diagram of loan approval ....................................................................................................... 61 
+Figure 19 .Activity diagram of  >100k loan account request ............................................................................... 62 
+Figure 20 .Activity diagram of  >100k loan account approval ............................................................................. 63 
+Figure 21 .Activity diagram of  CEO approval ...................................................................................................... 64 
+Figure 22 .Class Diagram  ..................................................................................................................................... 66 
+Figure 23 .User interface prototyping  ................................................................................................................ 69 
+Figure 24 .Architectural view ............................................................................................................................... 72 
+Figure 25 .Logical view ......................................................................................................................................... 74 
+Figure 26 .process view ....................................................................................................................................... 75 
+Figure 27 .Process view for Loan ......................................................................................................................... 77 
+Figure 28 .Process view  For Saving ..................................................................................................................... 78 
+Figure 29 .Deployment view ................................................................................................................................ 81 
+Figure 30 .Entity Relationship Model .................................................................................................................. 86 
+Figure 31 .Entity Relationship Diagram ............................................................................................................... 88 
+Figure 32 .Relational Mapping ............................................................................................................................. 94 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ VI
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Acknowledgement 
+
+First and foremost, we extend our deepest gratitude to the Almighty God for His providence, 
+
+guided us through every challenge of this project, providing the perseverance needed to transform 
+
+a conceptual vision into a functional reality. 
+
+We would like to express our sincere appreciation to the Hawassa University Department of 
+
+Information Systems. We are particularly grateful to the Department Head, Mr. Mekonen, for his 
+
+leadership and for ensuring the department met every need throughout our project’s development. 
+
+The academic environment and institutional support provided were the foundation of our success. 
+
+ 
+
+Our profound thanks go to our project advisor, Mr. Abinet T., for his invaluable guidance, 
+
+scholarly recommendations, and steadfast mentorship. His critical insights and technical expertise 
+
+were instrumental in refining our system architecture and ensuring our project met the highest 
+
+academic and professional standards. 
+
+We are also deeply indebted to Mr. Burka Buba, the Manager of Yemsrach Microfinance, Hawassa 
+
+Branch. His willingness to share his time and expertise was crucial. his detailed explanation of the 
+
+institutional workflow allowed us to truly understand the existing system and identify the "dual-
+
+system failure" that our project aims to solve. 
+
+Finally, we recognize the collective effort of our dedicated team members. This project is a 
+
+testament to our shared discipline and mutual support. Through effective collaboration and a 
+
+unified spirit. 
+
+ VII
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Abstract 
+
+The Edekise Microfinance Expense and Loan Tracker System addresses the critical "dual-system 
+
+failure" identified at the Yemsrach Microfinance Hawassa Branch, where the institution suffered 
+
+from the simultaneous burden of obsolete technology and manual process saturation. This project 
+
+presents a specialized digital solution engineered to modernize financial workflows, eliminate 
+
+calculation inaccuracies, and enhance institutional transparency. 
+
+Initial field research revealed that legacy systems were plagued by flawed interest calculation 
+
+logicscheduling repayments based on the last payment date rather than the loan origination 
+
+datewhich led to significant accounting discrepancies. Furthermore, the reliance on physical paper 
+
+archives made data retrieval labor-intensive and error-prone. To mitigate these risks, the Edekise 
+
+system was developed using an Iterative Waterfall Model, ensuring a balance between structural 
+
+discipline and functional flexibility. 
+
+Integrating the future of the institution, the Edekise system is designed for scalability and 
+
+seamless interoperability. A core component of this project is the integration of an automated 
+
+email Gateway for real-time payment notifications , generet report decerease  manual work and  
+
+allowing the Hawassa branch to maintain operations during regional internet outages while 
+
+ensuring data is integrated with the Addis Ababa head office once connectivity is restored. 
+
+Ultimately, this system provides a scalable framework for Yemsrach Microfinance to achieve 
+
+comprehensive digital transformation and maintain strict regulatory compliance with National 
+
+Bank of Ethiopia (NBE) standards 
+
+ VIII
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Table of Content 
+ 
+
+CHAPTER ONE: INTRODUCTION .................................................................................................................................... 3 
+1.1 Background of the Study .................................................................................................................. 3 
+Statement of the Problem ...................................................................................................................... 4 
+1.2 Literature Review ............................................................................................................................. 4 
+1.3 Objectives ........................................................................................................................................ 4 
+1.4 Significance of the project ............................................................................................................... 5 
+1.5 Scope of the Study ........................................................................................................................... 6 
+1.6. Limitations of the Study .................................................................................................................. 7 
+1.7. Methodology .................................................................................................................................. 7 
+1.7.1. Detailed Breakdown of Methods ................................................................................................. 8 
+1.7.2.Data Analysis & Processing Methodology .................................................................................... 8 
+1.9 Microfinance Expnse and Loan Trackr System SDLC framework ..................................................... 9 
+1.9.1 System Implementation Methodology ......................................................................................... 9 
+1.7.2. Testing and Deployment Methodology ....................................................................................... 9 
+1.9.2 System Requirements ................................................................................................................. 11 
+1.10 Project Feasibility Study ............................................................................................................... 11 
+1.10.1. Technical Feasibility ................................................................................................................. 12 
+1.10.2. Operational Feasibility .............................................................................................................. 12 
+1.10.3. Economic Feasibility (Cost-Benefit Analysis) ............................................................................ 12 
+1.11 Cost Estimation ............................................................................................................................ 13 
+1.12 Project Schedule .......................................................................................................................... 14 
+
+CHAPTER TWO : ANALYSIS OF THE EXISTING SYSTEM ................................................................................................. 16 
+2.1 Core Purpose of the System Analysis Phase .................................................................................. 16 
+2.2  Existing System Analysis ................................................................................................................ 16 
+2.2.1 Understand Current Functionality and Compliance ................................................................... 16 
+2.2.2 Document Information Flow ....................................................................................................... 16 
+2.2.3 Identify System Pain Points......................................................................................................... 17 
+2.2.4 Define New System Requirements ............................................................................................. 17 
+2.3 Primary Method of Data Collection: Interviews ............................................................................ 18 
+2.3.1 Structured Interview Process ...................................................................................................... 18 
+2.4 Key Challenges & Risks During Interviews ..................................................................................... 22 
+2.4.1. Deliverables of the Existing System Analysis Phase ................................................................... 22 
+2.5 Practical Application / How This Analysis Feeds the Next Phases ................................................. 22 
+2.6 Need for a New System ................................................................................................................. 22 
+2.7 Analysis of the Existing System ...................................................................................................... 23 
+2.7.1 Strengths of the Existing System ................................................................................................. 23 
+2.7.2 Weaknesses of the Existing Systems ........................................................................................... 23 
+
+CHAPTER THREE: SYSTEM FEATURES........................................................................................................................... 24 
+Introduction ......................................................................................................................................... 24 
+3.1 Functional Requirements ............................................................................................................... 24 
+3.2  Non-Functional Requirements ...................................................................................................... 25 
+3.3 Use Case Diagram .......................................................................................................................... 28 
+3.4 Use case documentation ............................................................................................................... 30 
+3.5 Sequence diagram ......................................................................................................................... 45 
+3.6 Activity Diagram ............................................................................................................................. 56 
+3.7 Class Diagram Description ............................................................................................................. 65 
+
+3.8 User interface prototyping .................................................................................................................... 67 
+CHAPTER FOUR: SYSTEM DESIGN ................................................................................................................................ 70 
+
+4.1 Introduction ................................................................................................................................... 70 
+4.2 Purpose of System Design Document ............................................................................................ 70 
+4.3 Architectural Design....................................................................................................................... 71 
+
+ Page1 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+4.4 Logical View ...........................................................................................................................................................
+4.5 Process View .................................................................................................................................. 74 
+4.6 Deployment view ........................................................................................................................... 79 
+4.6.1. Deployment Components and Nodes ........................................................................................ 79 
+4.6.2 Size and Performance ................................................................................................................. 80 
+4.7. DATABASE DESIGN ........................................................................................................................ 81 
+4.7.1 Actors .......................................................................................................................................... 82 
+4.7.2 Conceptual Data Model .............................................................................................................. 82 
+4.7.3 Logical Database Design ............................................................................................................. 83 
+4.7.4 Physical Database Design Considerations ................................................................................... 84 
+4.8. Entity-Relationship Model ............................................................................................................ 85 
+4.9 Entity Description Tables ............................................................................................................... 88 
+4.10. Relational Mapping ..................................................................................................................... 93 
+4.11 Normalization .............................................................................................................................. 95 
+
+CHAPTER FIVE .............................................................................................................................................................. 99 
+5.1 Conclusion ...................................................................................................................................... 99 
+5.2 Recommendations ....................................................................................................................... 100 
+
+                          5.3 Reference.....................................................................................................................................111  
+ 
+ 
+
+ Page2 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+CHAPTER ONE: INTRODUCTION 
+
+The microfinance sector plays a pivotal role in fostering economic development and financial inclusion, 
+particularly in developing economies like Ethiopia. By providing financial services to low-income 
+individuals and small enterprises, microfinance institutions (MFIs) empower communities, stimulate local 
+economies, and alleviate poverty. However, the efficacy of these institutions is heavily dependent on the 
+efficiency and inclusivity of their operational systems. 
+
+Yemsrach Microfinance, a established institution operating since 2010 E.C. with its main branch in Addis 
+Ababa and six branches including the Hawassa branch in Menahariya, is a key player in this sector. 
+Despite its significant role, the institution faces considerable operational challenges that hinder its 
+potential for growth and impact. Our team's interview with the branch manager revealed critical 
+inefficiencies in their current loan and expense management systems. 
+
+The core of the problem lies in a dual-system failure: technological inadequacy and manual process 
+overload. The existing digital system contains fundamental flaws; for instance, it calculates payment 
+schedules based on the date of the previous payment rather than the loan's origination date. This leads to 
+inaccurate accounting and confusion for both clients and staff. Furthermore, the system is rigid, 
+preventing clients from making advance or bulk payments (e.g., paying for two months at once), which 
+restricts financial flexibility for customers. 
+
+Compounding this issue is a heavy reliance on manual record-keeping. Client files are stored physically, 
+making retrieval of historical data, such as a client's file from the previous year, a tedious and error-prone 
+task that requires sifting through hundreds of documents. This lack of digitized, easily accessible data 
+cripples reporting, auditing, and customer service efficiency. Additionally, the absence of an automated 
+alert system to notify clients of upcoming payment deadlines results in delayed payments and potential 
+defaults. 
+
+Beyond operational inefficiencies, there is a significant gap in financial inclusion. Yemsrach's current 
+services, which include three saving and five loan products, are not designed to adequately accommodate 
+and encourage participation from marginalized groups, particularly persons with disabilities and women. 
+This represents a missed opportunity to empower some of the most vulnerable segments of the population 
+and integrate them into the marketplace, a crucial step for broader economic development in Ethiopia. 
+
+To address these multifaceted challenges, our project proposes the development of a comprehensive 
+Microfinance Expense and Loan Tracker System. This web application aims to automate and streamline 
+the core financial operations of Yemsrach Microfinance. It will introduce accurate, date-originated 
+payment scheduling, enable flexible payment options, digitize client records for instant retrieval, and 
+implement automated SMS reminders for clients. Furthermore, the system will be designed with an 
+inclusive framework to better serve and encourage the participation of women and persons with 
+disabilities, thereby aligning the institution's operations with the broader goals of economic empowerment 
+and inclusion. 
+
+1.1 Background of the Study 
+
+ Page3 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+Statement of the Problem 
+
+ Microfinance institutions serve as a critical bridge to financial inclusion for low-income entrepreneurs 
+and individuals lacking access to traditional banking services (Helms, 2006). The operational efficiency 
+of these institutions is paramount to their sustainability and ability to scale their impact. However, many 
+MFIs, particularly in developing nations, rely on legacy systems or extensive manual processes that are 
+prone to error, inefficient, and incapable of supporting modern financial services. Yemsrach Microfinance, 
+operating since 2010 E.C. with six branches, exemplifies this challenge. Its current system creates 
+significant operational friction, from inflexible payment processing to cumbersome manual record-
+keeping. 
+
+Despite the well-documented benefits of Management Information Systems (MIS) in reducing operational 
+risks and enhancing transparency, a significant gap remains in the technological inclusivity of small to 
+medium-sized Ethiopian MFIs. Existing literature emphasizes global digitalization trends, yet fails to 
+address the specific socio-economic and technical constraints of local institutions like Yemsrach 
+Microfinance, which are often forced to choose between prohibitively expensive international software or 
+manual, error-prone processes. Current market solutions lack the contextual flexibility required to handle 
+unique local payment practices and the specific reporting mandates required by national regulatory bodies. 
+Consequently, there is a critical need for a tailored, cost-effective web application that bridges this gap by 
+providing a localized, context-aware framework designed specifically for the underrepresented 
+microfinance landscape in Ethiopia. 
+
+1.2 Literature Review 
+
+Previous research consistently highlights the transformative impact of digitalization in the microfinance 
+sector. Studies by Ledgerwood (1999) and Armendáriz & Labie (2011) emphasize that Management 
+Information Systems (MIS) are crucial for tracking loan portfolios, managing client savings, and reducing 
+operational risks. Furthermore, recent literature by Duncombe & Boateng (2009) discusses how mobile 
+and web-based platforms can significantly improve loan repayment rates and customer satisfaction by 
+providing transparency and timely reminders. 
+
+However, a discernible gap exists in the practical application of these systems within the specific context 
+of small to medium-sized Ethiopian MFIs. Many available solutions are either prohibitively expensive, 
+overly generic for Western markets, or lack the flexibility to handle unique local payment practices and 
+reporting requirements. This project aims to fill this gap by developing a tailored, context-aware web 
+application that addresses the specific, on-the-ground challenges faced by institutions like Yemsrach 
+Microfinance, which remain underrepresented in existing technological research. 
+
+1.3 Objectives 
+
+General Objective: 
+To design, develop, and implement a comprehensive web-based Microfinance Expense and Loan Tracker 
+system. 
+
+Specific Objectives: 
+The project will conduct a comprehensive analysis of manual and semi-automated workflows at 
+Yemsrach Microfinance to define all functional and non-functional requirements. 
+
+ Page4 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+ 
+
+A flexible system architecture will be designed to move away from rigid monthly cycles, 
+allowing clients to make payments on their actual due dates. 
+
+·The platform will support advanced payment capabilities, enabling clients to perform bulk or 
+advance payments according to their financial capacity. 
+
+·An automated module will be developed to track loan repayment schedules with precision, 
+ensuring accurate real-time data. 
+
+·The system will automate complex interest calculations, reducing the risk of human error 
+inherent in manual processing. 
+
+·Automated notification features will be integrated to send SMS or email alerts to both clients 
+and staff regarding upcoming or overdue payments. 
+
+·A secure and searchable digital repository will be created to replace manual file-searching 
+methods for client records. 
+
+·Staff members will be empowered to instantly retrieve client information and historical data 
+using various digital filters. 
+
+·The system will incorporate inclusive design principles to specifically facilitate financial access 
+for underrepresented groups, such as women. 
+
+·Enhanced accessibility features will be implemented to ensure the platform is usable for 
+persons . 
+
+1.4 Significance of the project 
+
+For Institutional Leadership (Head CEO & Admin) 
+
+ Provides the Head CEO with accurate, real-time data for better managerial decision-making 
+and effortless reporting for audits. 
+
+ Enables the Admin to maintain a secure digital environment through centralized user 
+management and automated audit logs. 
+
+ Modernizes the institution's image as a client-friendly, efficient, and technologically 
+advanced MFI in the Ethiopian market. 
+
+ Reduces operational risks and accounting confusion by fixing the core payment calculation 
+logic flaws. 
+
+For Operational Staff (Branch Manager, Loan, & Saving Staff) 
+
+ Page5 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+ Drastic Efficiency Gains: Transforms tedious tasks like physical file retrieval from a process taking 
+hours into a digital search taking seconds. 
+
+ Automates complex interest calculations and repayment schedules, eliminating human errors 
+inherent in manual record-keeping. 
+
+ It Offers the Branch Manager a streamlined approval queue for savings and loans, replacing manual 
+paperwork with digital "Maker-Checker" oversight. 
+
+ Reduces the burden on staff to manually track delinquent accounts through an automated alert 
+system for upcoming deadlines. 
+
+For Clients (Existing and Prospective) 
+
+ Empowers clients by moving away from rigid monthly cycles to a system that supports payments on 
+actual due dates, as well as advance or bulk payments. 
+
+ Provides clear, accurate statements and loan histories, reducing confusion and fostering a more 
+professional relationship with the bank. 
+
+ Helps clients avoid defaults and late fees through timely SMS or email reminders. 
+
+1.5 Scope of the Study 
+
+This study is scoped to the design, development, and deployment of a Microfinance Expense and Loan 
+Tracker System as a comprehensive web application. The project's boundaries are defined to ensure a 
+focused and achievable outcome within the given constraints. 
+
+Key Inclusions: 
+
+ Subject & Population: The project is specifically tailored for Microfinance, with a primary focus 
+on the operational needs of its client. The end-users are defined as the institution's loan officers, 
+administrative staff, branch managers, and their existing and prospective clients. 
+
+ Main Deliverable: A fully functional, web-based application that serves as an integrated 
+management system for loans and operational expenses. 
+
+Key Functionalities: 
+
+ Loan Management Module: A system that accurately calculates payment schedules based on the 
+loan's origination date, not the date of the previous payment. 
+
+ Flexible Payment Processing: A feature that allows clients to make advance or bulk payments. 
+ Digital Client Repository: A secure, searchable database for all client records, enabling instant 
+
+retrieval by filters such as client name, ID, or loan year. 
+ Automated Alert System: An integrated module to send automated SMS reminders to clients for 
+
+upcoming payment deadlines and to staff for delinquent accounts. 
+ Inclusive Design Framework: The user interface (UI) and user experience (UX) will be designed 
+
+with principles of accessibility  
+
+. 
+
+Key Exclusions : 
+
+ Page6 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+ Institution-Wide Rollout: The initial development and implementation are scoped for the 
+Hawassa branch. While the system will be designed for scalability, a full rollout to all six 
+branches of Yemsrach Microfinance is outside the immediate scope of this project phase. 
+
+ Mobile Banking Integration: The system will not develop independent mobile banking 
+applications for clients. Client-facing functionality will be accessed via a responsive web 
+interface. 
+
+ 
+
+ Credit Scoring Algorithms: The development of sophisticated, automated AI-driven credit 
+scoring or risk assessment models is excluded. The system will manage existing client data but 
+will not autonomously approve or reject loans. 
+
+ Full Accounting Suite: The system will focus on expense tracking related to microfinance 
+operations but will not replace a full-scale Enterprise Resource Planning (ERP) or accounting 
+software for all the institution's financial needs. 
+
+ Hardware Provision: The project scope covers software development and implementation. It does 
+not include the procurement of new hardware for the institution. 
+
+ 
+
+1.6. Limitations of the Study 
+
+The limitations of this study are characterized by specific geographical, institutional, and technological 
+boundaries that define the project's current scope and operational environment. Geographically, the 
+system is exclusively designed for and tested within the specific context of Yemsrach Microfinance’s 
+Hawassa branch, a focus necessitated by the need to manage project depth and resource requirements 
+effectively while basing the analysis on the branch's unique operational practices1. Consequently, while 
+the findings are directly applicable to the Hawassa branch, the system’s suitability for other Ethiopian 
+MFIs or additional Yemsrach branches may be limited without further customization2. Technically, the 
+application’s performance—particularly regarding database hosting and automated notification services—
+is inherently dependent on the reliability of regional internet connectivity and mobile networks3. Because 
+these infrastructure factors are external and beyond the control of the development team, occasional 
+network outages could temporarily hinder access to the web interface or delay critical automated 
+reminders, potentially affecting overall operational efficiency4. To address these constraints in the future, 
+the system's architecture can be studied for broader scalability, and the implementation of robust offline 
+functionality or redundant notification methods could be explored to mitigate regional connectivity 
+limitations5. 
+
+ 
+
+1.7. Methodology 
+
+This section outlines the systematic approach we will employ to design, develop, and implement the 
+Microfinance Expense and Loan Tracker web application for Microfinance. The methodology is designed 
+to be rigorous, user-centered, and iterative to ensure the final product effectively addresses the specific 
+pain points identified during the requirement gathering phase. 
+
+ Page7 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+1.7.1. Detailed Breakdown of Methods 
+
+ Data Collection Methodology 
+
+Our approach to data collection will be multi-faceted to ensure comprehensive requirements gathering 
+and validation. 
+
+Primary Data Collection: 
+
+ Structured Interviews: The 15-question interview conducted with the manager of the Hawassa branch 
+serves as our primary foundational data. This provided deep qualitative insights into core services, 
+pain points, and desired functionalities. 
+
+ User Stories & Follow-up Interviews: We will convert the interview findings into detailed user 
+stories. Brief, focused follow-up interviews will be conducted to clarify ambiguities and validate our 
+understanding of complex processes like interest calculation and multi-branch reporting. 
+
+ User Acceptance Testing (UAT): This will be a critical ongoing data collection method during the 
+testing phase . 
+
+Secondary Data Collection: 
+
+ Literature Review: Analysis of existing research on microfinance operations, digital financial 
+inclusion and best practices for loan tracking systems. 
+
+ Company Data : We will request sample, anonymized datasets from Yemsrach  to design and test our 
+database schema and algorithms accurately. Ethical handling of this data is paramount . 
+
+Some example of interview 
+
+I. How do you access client information? 
+II. How do you record new loan applications and disbursements? 
+III. How do you record loan repayments? 
+IV. How do you manage client savings accounts? 
+V. How do you communicate with clients regarding their loans or savings?  
+
+1.7.2.Data Analysis & Processing Methodology 
+
+ 
+Document Analysis: Different documents will be analyzed to gather more information about the existing 
+system processes and workflows. Special attention will be given to those documents that can introduce 
+additional features for the proposed platform. 
+ 
+Observation: Direct observation will be employed to gather information that cannot be obtained through 
+interviews or other methods. 
+ 
+Reasons for Document Analysis: Document analysis is an efficient and effectiveway of gathering 
+software requirements, as documents are manageable and practical resources. 
+ 
+Surveys: After the platform is deployed, surveys will be conducted to gather feedback on the platform's 
+functionality and identify areas for improvement. The surveys will include a mix of closed-ended 
+questions designed to measure satisfaction with existing platforms and preferred features. 
+ 
+
+ Page8 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+Qualitative Analysis: The responses from the interviews will be analyzed using thematic analysis. We 
+will code the responses to identify key themes such as manual inefficiencies,communication 
+gaps,reporting needs These themes will directly inform the priority of features in the product backlog. 
+
+1.9 Microfinance Expnse and Loan Trackr System SDLC framework 
+
+ 
+Requirements Analysis: In this phase, all platform requirements will be gathered and documented. 
+Functional (what the platform should do) and non-functional (performance, security, etc.) requirements 
+will be identified using various data collection methodologies. The outcome will be a comprehensive 
+requirements specification document. 
+ 
+Design: Once the requirements are understood, the design phase begins. This involves creating a detailed 
+design document that outlines the platform's architecture, user interface, and system components. 
+ 
+Architecture Design: Defining the platform's overall architecture, considering factors such as scalability, 
+maintainability, and security. 
+ 
+Database Schema Design: Designing the database schema to efficiently store and manage user data, 
+property records, and other relevant information. 
+ 
+User Interface Design: Focusing on a user-friendly interface, ensuring efficient feedback and iteration 
+during the design process. For designing the user interface, Figma will be used as the primary tool. 
+ 
+
+1.9.1 System Implementation Methodology 
+
+ 
+System implementation methodology translates the system design into a functional property listing 
+platform by implementing the actual code. A structured and systematic approach will be followed to 
+ensure efficient deployment and effective operation. 
+ 
+Object-Oriented Programming (OOP) will be used as the primary coding approach. OOP enables an 
+organized, modular, scalable, and reusable codebase. 
+
+1.7.2. Testing and Deployment Methodology 
+
+A multi-layered testing strategy will be employed to ensure reliability and usability: 
+
+Software Testing: 
+
+ Unit Testing: Testing individual functions (e.g., a single interest calculation function) using a 
+framework like Jest (for JavaScript) or JUnit (for Java). 
+
+ Integration Testing: Testing how modules interact (e.g., ensuring a repayment transaction correctly 
+updates the client's balance and loan status). 
+
+ System Testing: Testing the completely integrated application end-to-end. 
+ User Acceptance Testing (UAT): The most critical phase. We will deploy a beta version to a pilot 
+
+group at Yemsrach Microfinance (e.g., the Hawassa branch). They will use it in a controlled  
+
+ Page9 
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+environment to validate if it meets all requirements and is efficient and easy to use. Their feedback will be 
+the primary metric for success. 
+
+Performance Metrics: Success will be evaluated against specific criteria derived from  
+
+ Efficiency: Reduction in time spent retrieving client files (e.g., from hours to seconds). 
+ Accuracy: Elimination of errors in interest and statement generation. 
+ Functionality: Successful processing of flexible repayments (e.g., paying two months at once). 
+
+ 
+
+ User Satisfaction: Measured via a simple post-UAT survey based on a Likert scale. 
+
+Ethical Considerations 
+
+This project involves handling sensitive financial and personal data. We are committed to the highest 
+ethical standards: 
+
+ Informed Consent: Any further direct interaction with Yemsrach staff for follow-ups or UAT will 
+be preceded by a clear explanation of the process and written consent. 
+
+ Anonymity & Confidentiality: All specific client data used for testing (if provided) will be 
+thoroughly anonymized. Names, IDs, and other personal identifiers will be replaced with 
+synthetic data. 
+
+ Data Security: The application will be designed with security best practices, including password 
+hashing, SQL injection prevention, and HTTPS encryption, to protect data both in transit and at 
+rest. All sample data provided by Yemsrach will be stored on encrypted drives and destroyed 
+after the project's completion. 
+
+Key implementation steps include: 
+ 
+1. Programming 
+ 
+ Develop the code based on the design specifications. Programming languages to be used: HTML, 
+
+CSS, JavaScript, PHP, Bootstrap, and Laravel. 
+ 
+2. Database Implementation 
+ 
+ Create and configure the database according to the finalized schema. Implement security measures 
+
+such as encryption and role-based access control.The database will be designed using MySQL, a 
+robust and widely used relational database management system (RDBMS). 
+
+ 
+3. Integration of External Services 
+ 
+ Integrate third-party services like payment methods and location services (e.g.. Google Maps). 
+ 
+4. Testing 
+ 
+
+ Page10
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+ Test the software to ensure it meets the requirements. 
+ 
+ Test security measures like input validation and access control. 
+ 
+5. Deployment Preparation 
+ 
+ Set up production servers with necessary configurations, dependencies, and resources.. 
+ 
+
+1.9.2 System Requirements 
+
+ 
+Microfinance system requires specific hardware, software, and network configurations to ensure efficient 
+operation. These requirements are divided into minimum and recommended categories for base and 
+optimal performance. 
+ 
+
+Category Feature Minimum Requirements Recommended Requirements 
+
+Quad-core CPU, 2.5 GHz+ Quad-core CPU, 3.0 GHz+ (Intel 
+Hardware Processor 
+
+(Intel Xeon/AMD Ryzen) Xeon/AMD Ryzen) 
+
+Memory 
+ 8 GB RAM 16 GB RAM 
+
+(RAM) 
+
+ Storage 250 GB SSD 500 GB SSD 
+
+Network 
+ 100 Mbps Ethernet 1 Gbps Ethernet 
+
+(Port) 
+
+Operating Windows Server 2016 or Windows Server 2019 or Ubuntu 
+Software 
+
+System Ubuntu 20.04 22.04 
+
+MongoDB Community Edition MongoDB Atlas (Cloud) v5.0+ 
+ Database 
+
+4.2+ or MySQL 
+
+NestJS with Node.js v16 & 
+ Backend NestJS with Node.js v18 
+
+Express 
+
+Nginx or Apache 2.4 (Consistent 
+ Web Server Nginx or Apache 2.4 
+
+across tiers) 
+
+Table 1. System Requirements  
+
+ 
+
+1.10 Project Feasibility Study 
+
+ Page11
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+1.10.1. Technical Feasibility 
+
+This assesses whether the proposed system can be developed and implemented with the current and 
+available technology. 
+
+Technology Stack & Availability: 
+
+ Backend: We propose using PHP (Laravel) or Python (Django). These are open-source, robust, well-
+documented frameworks ideal for building secure financial applications. They are widely used and 
+supported, and expertise can be found locally. 
+
+ Frontend:HTML5, CSS3, JavaScript. These are standard web technologies that will create a 
+responsive and user-friendly interface for both staff and clients. 
+
+ Database:MySQL or PostgreSQL. These are powerful, open-source relational database management 
+systems perfect for handling structured financial data, client records, and transaction histories. They 
+are reliable and can scale with the institution's growth. 
+
+Technical Skills & Expertise: 
+
+ As 4th-year IS students, our curriculum has equipped us with the foundational knowledge in database 
+design, software engineering, web development, and system analysis required for this project. 
+
+ Potential Challenges: Advanced security protocols for financial data and complex reporting modules 
+might require additional research or guidance from our university advisors. This is a manageable 
+challenge that forms part of our academic growth. 
+
+1.10.2. Operational Feasibility 
+
+This evaluates whether the system will be used and accepted by the staff and clients once it is 
+implemented. It's about the human and procedural aspects. 
+
+User Needs & Acceptance: 
+
+ The system directly addresses the major pain points identified by the Branch Manager: inaccurate 
+scheduling, inflexible payments, and tedious manual filing. 
+
+ Staff Training: A key component will be designing and conducting comprehensive training sessions 
+for the Hawassa branch staff. The intuitive web-based interface should reduce the learning curve. 
+Their buy-in is crucial, and the clear benefits will greatly encourage adoption. 
+
+ Client Experience: Clients will benefit from payment flexibility and email reminders, reducing their 
+confusion and potential for default. This improves their relationship with the institution. 
+
+Organational Impact: 
+
+ The system will significantly improve operational efficiency. Tasks that took hours (file retrieval) 
+will take seconds. Reporting for audits and management will become effortless. 
+
+ It will reduce human errors in calculation and record-keeping. 
+ The workflow will change from manual-heavy to digital-centric, which is a positive shift that staff 
+
+are likely to welcome as it reduces their tedious workload. 
+
+1.10.3. Economic Feasibility (Cost-Benefit Analysis) 
+
+ Page12
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+This analyzes the financial viability of the project, weighing the costs against the tangible and intangible 
+benefits. 
+
+ Costs: 
+
+ Human Resources: Our work as students can be considered a sunk cost or an in-kind contribution for 
+the purpose of this project, significantly reducing development costs for Yemsrach. 
+
+ Hardware/Software: Minimal. Uses open-source software. Primary cost would be a server for 
+deployment or a monthly cloud subscription fee, which is low for a system of this scale. 
+
+ Total Estimated Development Cost: Very Low to Negligible for the organization. 
+
+ Benefits: 
+
+ 
+
+ Reduced Defaults: Automated reminders will lead to more on-time payments, directly improving 
+cash flow and reducing bad debt. 
+
+ Increased Efficiency: Time saved by staff on manual tasks can be reallocated to customer service, 
+business development, and loan analysis, indirectly increasing revenue. 
+
+ Reduced Operational Costs: Less paper, printing, and physical storage costs. 
+ Enabled New Revenue: Flexible payment options may attract more clients and allow for more loan 
+
+products. 
+ Improved Client Satisfaction & Trust: Due to accuracy and flexibility. 
+ Enhanced Reputation: As a modern, efficient, and client-friendly MFI. 
+ Better Decision Making: Access to accurate, real-time data for management. 
+ Progress towards Financial Inclusion: A more robust system is the first step to designing products for 
+
+marginalized groups. 
+
+This project is not only a viable solution for Yemsrach but also an excellent practical capstone project for 
+our team, allowing us to apply our Information Systems knowledge to a real-world problem with 
+significant positive impact on our local community in Hawassa. 
+
+1.11 Cost Estimation 
+
+Estimat
+No. Category Description ed Total 
+
+(ETB) 
+
+Local transport for site visits to the Hawassa branch 
+1 Miscellaneous and minor administrative overheads during the 1,000 
+
+development phase. 
+
+Printing & Hard copies of project documentation, system 
+2 1,500 
+
+Stationery diagrams, and physical training materials for staff. 
+
+ Page13
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+Estimat
+No. Category Description ed Total 
+
+(ETB) 
+
+ Data packages required for database synchronization, 
+Operational 
+
+remote deployment, and testing the automated email 2,500 
+Internet 
+
+3 engine. 
+
+Utilization of open-source technologies (PHP/Laravel, 
+4 Software & Tools 0 
+
+React, MySQL), ensuring zero licensing costs. 
+
+Conducting hands-on workshops for branch officers 
+Training & 
+
+5 and developing user-specific operation manuals for the 4,500 
+Onboarding 
+
+new digital workflow. 
+
+Human Stipends for the 5-member development team 
+6 15,000 
+
+Resources responsible for system architecture 
+
+A 10% safety buffer reserved for unforeseen technical 
+Contingency 
+
+7 hurdles or hardware issues discovered during final 2,450 
+Fund (10%) 
+
+implementation. 
+
+Total   26,950 
+
+ 
+Table 2.Cost Estimation 
+
+1.12 Project Schedule 
+
+For our project, the work breakdown structure (WBS) is a hierarchical framework designed to divide the 
+project into manageable tasks. This structure includes all critical phases of the project, from design and 
+development to testing, deployment, and maintenance of the platform. 
+ 
+Each phase is further broken down into specific tasks and activities that outline clear milestones, 
+deadlines, and dependencies. By organizing the work this way, project managers and team members can 
+allocate resources efficiently, track progress, and ensure the scope of the project is well understood. 
+ 
+The use of a systematic approach to scheduling not only facilitates the timely completion of tasks but also 
+helps in identifying key paths, minimizing potential delays, and ensuring the project remains within the 
+allocated budget. The WBS enables better monitoring and control throughout the project lifecycle, 
+ensuring a seamless development process for Edekise Microfinance . 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page14
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+ 
+
+Activity  Duration(by week) weeks 
+Project Initilazaton 2 1-2 
+Requirements Gathering 2 2-4 
+Frontend development 2 4-6 
+Testing and QA  1 6-7 
+Backend development 3 7-10 
+Deployment 3 10-13 
+Orientation/Feedbacks  3 13-16 
+
+Table 3.project schedule 
+ 
+ 
+ 
+ 
+ 
+
+ 
+Figure 1.Gannt chart 
+
+ 
+
+ 
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page15
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+CHAPTER TWO : ANALYSIS OF THE EXISTING SYSTEM 
+
+The analysis of the existing system is a critical phase that lays the intellectual foundation for the development of 
+the proposed Microfinance Expense and Loan Tracker System. This phase does not aim to fully document every 
+detail of the current operational structures but rather to extract meaningful, actionable insightsboth operational 
+and regulatorythat drive the design of the new solution. In the context of Yemsrach Microfinancea long-
+established institution operating since 2010 E.C. with six branches including Hawassa Menahariyaunderstanding 
+the current technological and manual systems is especially important due to the institution’s reliance on both 
+digital and traditional procedures and its need to comply with the National Bank of Ethiopia (NBE). 
+
+2.1 Core Purpose of the System Analysis Phase 
+
+The primary objective of this phase is to gain a clear understanding of how Yemsrach Microfinance 
+currently performs its saving, loan, and expense operations within the mandated regulatory framework. 
+This involves: 
+
+a. Mapping existing workflows: We analyze both automated (digital) processes and manual procedures to 
+understand how daily tasks are executed. 
+
+b. Identifying inefficiencies and compliance gaps: We uncover delays, inaccuracies, duplications, 
+operational difficulties, and areas where practices deviate from NBE directives. 
+
+c. Understanding user needs and frustrations: By engaging users directly, we learn about functional and 
+non-functional gaps reflected in their daily experiences. 
+
+d. Forming a reliable basis for new system requirements: Our findings directly inform the design and 
+structure of the proposed web application, ensuring it is both efficient and compliant. 
+
+2.2  Existing System Analysis 
+
+2.2.1 Understand Current Functionality and Compliance 
+
+We examine how the organization’s core financial activitiesloan issuance, savings operations, client 
+record management, interest processing, and expense trackingare currently handled and whether they 
+align with NBE directives. Although a digital system exists, it is vendor-owned, restrictive, and heavily 
+supplemented by manual paperwork, making compliance challenging. 
+
+2.2.2 Document Information Flow 
+
+We document: 
+
+ how client data enters the system 
+
+ 
+
+ Page16
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+ how loan amounts and repayment schedules are processed 
+ how savings transactions are recorded 
+ how reports and historical data are retrieved 
+ how staff communicate with clients 
+
+This mapping helps us identify redundancies, delays, error-prone areas, and potential reporting failures. 
+
+2.2.3 Identify System Pain Points 
+
+Through interviews and observations, we identified several operational and regulatory challenges: 
+
+a. Flawed payment scheduling:The current system calculates repayments based on the previous payment 
+date, not the loan start date, leading to non-transparent and potentially non-compliant interest calculations. 
+
+b. No flexible payment options:Clients cannot make advance or multi-month payments. 
+
+c. Heavy reliance on paper:Retrieving past client data for audits or NBE reporting requires searching 
+through hundreds of physical files. 
+
+d. No automated reminders:There are no SMS or email alerts to remind clients of upcoming due dates. 
+
+e. Interview confidentiality limitations:Due to security policies, only 15 of our 25 questions were 
+answered. 
+
+f.Inadequate risk management: Manual processes make real-time loan classification (Performing, 
+Substandard, Doubtful, Loss) and provisioning as per NBE guidelines nearly impossible. 
+
+g. Lack of inclusion tracking: The system has no features to tag or report on loans to women, youth, or 
+persons with disabilities, hindering the measurement of financial inclusion efforts. 
+
+2.2.4 Define New System Requirements 
+
+From our findings, the new system must: 
+
+ digitize all client records 
+ calculate payments accurately from loan origination dates in full compliance with NBE 
+
+transparency directives 
+ support advance/multiple-month payments 
+ send automated reminders 
+ generate regulatory and internal reports instantly 
+ include features that support and track lending to women, youth, and persons with disabilities 
+ automatically classify loans and calculate Portfolio at Risk (PAR) for prudential management 
+ maintain a complete, unalterable audit trail 
+ minimize vendor dependency to allow for regulatory adaptability 
+ improve auditability and transparency for NBE examinations 
+
+ 
+
+ Page17
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+2.3 Primary Method of Data Collection: Interviews 
+
+2.3.1 Structured Interview Process 
+
+a. Preparation 
+
+Before interviewing, we reviewed: 
+
+ existing documentation 
+ sample forms 
+ NBE directives relevant to MFIs 
+ reports and logs 
+ available system screens 
+
+This helped us ask informed and relevant questions regarding both operations and compliance. 
+
+b. Interview Sequence 
+
+1. Management interviews 
+We began with management to understand strategic priorities, system overview, and regulatory 
+obligations. 
+
+2. Staff interviews 
+We then spoke with clerical and finance staff to understand operational-level challenges and daily 
+compliance hurdles. 
+
+c. Synthesis 
+
+We combined and analyzed all interview notes, removed off-the-record remarks, and organized the 
+information into a coherent understanding of the existing system and its regulatory alignment. 
+
+2.3.2. Inputs & Sources of Information 
+
+We collected information from: 
+
+ documentation 
+ criptions 
+ explanations from staffNBE directives and circulars 
+ sample screens and reports 
+ paper-based forms 
+ loan and saving product des 
+
+Sample evaluation form fill by customer 
+ 
+
+ Page18
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page19
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page20
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page21
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+2.4 Key Challenges & Risks During Interviews 
+
+We encountered several common challenges: 
+
+ some staff did not fully understand why certain processes existed or the regulatory basis for them 
+ users described tasks procedurally instead of explaining business goals or compliance needs 
+ many had limited perspectives restricted to their job roles 
+ root causes of problems were difficult to extract 
+ some were hesitant due to fear of change 
+ security restrictions limited access to system details 
+
+These challenges required clarification and patience. 
+
+2.4.1. Deliverables of the Existing System Analysis Phase 
+
+We produced: 
+
+ organized and cleaned interview notes 
+ a list of information sources 
+ a list of identified operational and regulatory problems 
+ initial requirements for the new system 
+
+2.5 Practical Application / How This Analysis Feeds the Next Phases 
+
+Our findings directly inform: 
+
+1. As-Is process diagrams 
+2. To-Be process diagrams 
+3. Complete SRS document (now with enhanced compliance requirements) 
+4. System architecture design 
+
+2.6 Need for a New System 
+
+Given changes in technology, economic conditions, and financial regulations, Yemsrach Microfinance 
+needs a modern, efficient, and compliant system. The new system will: 
+
+ enhance operational performance 
+ ensure adherence to NBE directives 
+ automate repetitive tasks 
+ reduce errors and financial risk 
+ improve regulatory reporting 
+ increase financial inclusion 
+ eliminate vendor dependency 
+ strengthen institutional capacity and integrity 
+
+ 
+
+ Page22
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+2.7 Analysis of the Existing System 
+
+The operational framework of Yemsrach Microfinance is characterized by a combination of foundational 
+strengths and critical weaknesses that impact its overall efficiency, client service, and potential for growth. 
+
+2.7.1 Strengths of the Existing System 
+
+The institution benefits from several core strengths that have supported its longevity and community 
+presence. As a long-established microfinance institution with six operational branches, it has developed a 
+reputable standing. This is bolstered by a team of skilled and experienced staff who possess a deep 
+understanding of daily operations and client relationships. Yemsrach offers a diverse portfolio of saving 
+and loan products, catering to a wide range of financial needs, which has helped it build a stable and loyal 
+client base. Furthermore, the partial digital infrastructure already in place provides a crucial foundation 
+for future technological modernization and efficiency improvements. 
+
+Key Strengths: 
+
+ Long-standing microfinance institution with six operational branches. 
+ Skilled and experienced staff. 
+ Diverse saving and loan products. 
+ Stable and loyal client base. 
+ Partial digital infrastructure enabling gradual modernization. 
+
+2.7.2 Weaknesses of the Existing Systems 
+
+Conversely, the system is hampered by significant weaknesses that create operational bottlenecks and 
+limit its effectiveness. A fundamental flaw exists in the loan calculation methodology, where repayment 
+schedules are based on the previous payment date instead of the fixed loan origination date, leading to 
+confusion and inaccuracies. Clients are restricted by a lack of flexible payment options, unable to make 
+advance or multiple-month payments. The heavy reliance on manual, paper-based record-keeping slows 
+data retrieval, increases the risk of human error, and hinders reporting. The core system is vendor-
+controlled, severely limiting the institution's ability to customize and adapt it to specific needs. The 
+absence of automated client notifications for payments or updates places an additional burden on staff and 
+clients alike. Documentation is often incomplete or outdated, and the services are . 
+
+Key Weaknesses: 
+
+ Flawed loan calculation methodology. 
+ No flexible payment options for clients. 
+ Heavy reliance on manual record-keeping. 
+ Absence of automated client notifications. 
+ Incomplete or outdated documentation. 
+ Limited accessibility   
+ Operational bottlenecks reducing overall efficiency. 
+
+ 
+ 
+
+ Page23
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+CHAPTER THREE: SYSTEM FEATURE 
+
+Introduction 
+
+The System Requirements for the Edekise Microfinance system provide the comprehensive blueprint for its 
+development and validation, ensuring the final product accurately meets stakeholder needs. These requirements are 
+divided into two interdependent sets: Functional Requirements   and Non-Functional Requirements. which define 
+the essential quality attributes and operational constraints detailing how well the system must perform. Together, 
+these requirements translate the conceptual use case diagram,sequence diagram , activity diagram and Class 
+Diagram and user stories into a measurable, verifiable specification that guides design, implementation, and testing 
+across all system modules. 
+ 
+
+3.1 Functional Requirements 
+
+Functional requirements define the core actions and processes the Edekise Microfinance system must perform. 
+ 
+ Account Management 
+The system must govern the creation, structuring, and modification of all financial accounts. 
+
+1. Loan Account Creation: The system must provide a user interface accessible only to LoanStaff for 
+
+initiating the createLoanAccount process, requiring mandatory fields such as principalAmount, 
+
+interestRate, and termMonths. 
+
+2. Saving Account Creation: The system must allow SavingStaff to create a new SavingAccount only 
+
+after the Client  established and must automatically apply the current default interestRate and 
+
+depositLimit. 
+
+3. Statement Generation: The system must generate a formal Statement record upon the Client's request, 
+
+reflecting the current state and transaction history of the associated LoanAccount. 
+
+4. Account Closure: The system must allow authorized Staff to transition an Account status from 'Active' 
+
+to 'Closed' archiving all related transaction data while retaining necessary regulatory records. 
+
+ Transaction Processing 
+The system must accurately and securely handle all financial movements. 
+
+1. Deposit Validation: The deposit(amount) method for a SavingAccount must validate that the 
+
+transaction amount does not exceed the account's specified depositLimit . 
+
+2. Withdrawal Validation: The withdraw method must first verify that the transaction amount does not 
+
+cause the currentBalance to fall below zero (or any defined minimum balance threshold). 
+
+ Page24
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+3. Balance Update Integrity: All transaction methods (deposit, withdraw, and internal interest 
+
+calculations) must utilize database transactions to ensure atomic updates to the -private currentBalance 
+
+attribute, guaranteeing accuracy. 
+
+ Authentication and Authorization  
+The system must ensure proper identity verification and role-based access control (RBAC). 
+
+1. Role Enforcement: The system must strictly enforce that methods designated for specialized roles  are 
+
+inaccessible to users with lower roles  
+
+2. Session Management: After a successful login(), the system must maintain a secure, time-limited 
+
+session linked to the user's userID and role for all subsequent requests until logout() is explicitly called or 
+
+the session times out. 
+
+ Request and Approval Workflow 
+The system must manage formal processes for actions that require managerial oversight. 
+
+1. Request Submission: Any high-value action, such as Branch Manager initiating a 
+
+request100KLoanAccount(), must automatically create a new record in the Request entity with the status 
+
+set to 'Submitted'. 
+
+2. Approval Routing: The system must automatically route submitted Request records to the authorized 
+
+approver. 
+
+3. Status Tracking: The Request entity must track the complete history of status changes, including the 
+
+date and the specific user who updated the status using the setStatus(newStatus) method. 
+
+ Process View Implementation (Loan) 
+
+The system must maintain the consistency and accuracy of its data model. 
+
+1. Foreign Key Enforcement: The system must enforce the association that an Account record must 
+
+reference a valid, existing ownerID corresponding to a Client record. 
+
+2. Method Mediation: All modifications to core -private financial attributes  must be exclusively 
+
+processed through the defined +public methods, preventing direct database manipulation. 
+
+3.2  Non-Functional Requirements 
+
+Non-functional requirements define the quality and operational constraints of the system.Security  
+
+ 
+
+ Page25
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+1. Encryption (Authentication Data): All user authentication data (-private passwordHash) must be hashed 
+
+using a modern, adaptive algorithm and stored using industry-standard encryption protocols. 
+
+2. Communication Encryption: All network communication involving financial data  must be transmitted. 
+
+3. Audit Trails: The system must maintain an immutable audit log detailing every action that modifies an 
+
+Account or a Request status, recording the user, timestamp, and specific change made. 
+
+4. Input Validation: All external inputs, especially those affecting financial calculations must be 
+
+rigorously validated to prevent injection attacks and data corruption. 
+
+ Performance 
+1. Response Time (Login): The system must complete the login() process and return a user session in less 
+
+than minimum time of all attempts. 
+
+2. Transaction Latency: The system must process deposit() and withdraw() transactions and update the 
+
+currentBalance in less than few second. 
+
+3 Reporting Speed: The generation of a comprehensive LoanStatementmust be completed and delivered 
+
+to the user in under minute seconds. 
+
+ Reliability  
+1. Availability: The system must maintain best uptime during standard business hours (excluding 
+
+scheduled maintenance windows), equating to less than needed hours of downtime per year. 
+
+2. Disaster Recovery: In the event of a catastrophic system failure, all approved transactions and pending 
+
+Request records must be recoverable with a Recovery Point Objective (RPO) of zero and a Recovery 
+
+Time Objective (RTO) of  minutes. 
+
+3. Error Handling: The system must provide informative and non-technical error messages to Clients, 
+
+while logging detailed technical errors for Staff . 
+
+ Maintainability and Scalability  
+1. Modularity: The system architecture must be modular, adhering strictly to the Class Diagram structure 
+
+to allow for independent updating of specialized roles  without affecting the SavingStaff module. 
+
+2. Scalability: The system must be capable of supporting 20% annual growth in the number of Client 
+
+accounts and the volume of daily transactions without requiring fundamental architectural changes. 
+
+3 Testability: All core +public methods must be designed to allow for unit testing independent of the 
+
+persistence layer. 
+
+ 
+
+ Page26
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+ Usability  
+1. Client Interface: The user interface for Client tasksmust be intuitive and require minimal training, 
+
+designed with accessibility standards in mind. 
+
+2. Staff Efficiency: The primary interfaces used by LoanStaff and SavingStaff  must be optimized to 
+
+allow for the completion of their respective primary tasks in under  minutes per instance. 
+
+ 
+
+  
+
+ Page27
+
+
+
+Edekise Microfinance|2026       
+ 
+
+ 
+
+ 
+
+3.3 Use Case Diagram 
+
+The Use Case Diagram for the Edekise Microfinance system defines its functional scope by illustrating 
+the interactions between five distinct Actors and the required Use Cases within the system boundary. 
+ 
+Actors  
+ 
+The actors are the external entities interacting with the system: 
+
+ Client 
+ Saving Stuff  
+ Loan stuff 
+ Head CEO 
+ Branch Manager 
+ Admin 
+ 
+Activities 
+The activities represent the functions the system performs to meet the actors' goals: 
+
+ Create Account 
+ Assign Special Permissions 
+ Delete Account 
+ Archive User Data 
+ View Users Accounts 
+ Approve Branch Request 
+ View Branch Deposit/Credit 
+ Set Credit Limit 
+ Approve Saving Account Request 
+ View Balance/Credit 
+ Approve/Reject Loan Statement 
+ Update Loan Request 
+ Request > 100K Loan Account 
+ Request Loan Statement 
+ Calculate Interest 
+ Generate Loan Schedule 
+ Rejection Handling 
+ Request Approval 
+ Process Withdraw 
+ Calculate Interest 
+ Register 
+ Upload Doc 
+ View Transacti
+
+ Page28
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Figure 2.Use case diagram  
+ 
+ 
+  
+
+
+
+ 
+Endekise Microfinance|2026 
+
+3.4 Use case documentation 
+
+The following consecutive tables show the use case documentation for the use case that is 
+illustrated on the above use case diagram. Each table contains the use case name the actor 
+which initiates and interacts with the use case, description of the use case and typical course 
+of events that show the interaction between the actor and the use case which enable the team 
+to easily depict the functions of the proposed system. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page30
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Use Case ID UC-A-001 
+
+Use Case Login 
+Name 
+
+All Actors (Client, Loan Stuff, Saving Stuff, Head CEO, 
+Actor 
+
+Admin ,Branch manager) 
+
+Allows a user to securely authenticate and gain access to the 
+Description 
+
+system based on their assigned role and permissions. 
+
+The user must have a valid, active user account within the system. 
+Precondition The system must be operational and accessible. 
+
+1. User accesses the system and lands on the Login page.  
+2. User enters their unique Username and Password.  
+3. User selects 'Submit' or 'Login'.  
+
+Basic Flow 4. System validates the credentials against the user database. 
+5. If successful, the System retrieves the user's role and redirects 
+them to their corresponding dashboard. 
+
+Post The user is successfully authenticated and redirected to their role-
+Condition specific dashboard. A secure session token is issued. 
+
+1: Invalid Credentials: If credentials do not match (Step 4), the 
+System displays an error: "Invalid Username or Password. Please 
+try again." The flow returns to Step 1 
+
+Alternative 2: Account Locked: If multiple failed attempts exceed the security 
+Flows threshold, the System displays an error: "Account locked due to 
+
+excessive failed attempts. Contact support." The user is blocked 
+from retrying. 
+
+Table 4. Use-case scenario for login to the system 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page31
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+
+Use Case ID UC-C-001 
+
+Use Case View Transaction 
+Name 
+
+Actor Client 
+
+Allows the authenticated Client to securely view their current 
+Description deposit account balance and available credit or outstanding 
+
+loan balance. 
+
+The Client must have successfully completed the Login process 
+Precondition (UC-A-001) and must have at least one active account (Savings 
+
+or Loan) linked to their profile. 
+
+1. Client selects 'View Balance' from the main dashboard. 
+ 2. System retrieves the Client's active accounts and current 
+balances.  
+
+Basic Flow 3. System displays a summary table showing: Account Type, 
+Account Number Current Deposit Balance, and Available 
+Credit/Outstanding Loan Balance.  
+4. Client views the information. 
+
+Post The system logs the date and time of the balance inquiry. The 
+Condition requested financial data is successfully displayed to the Client. 
+
+ No Active Accounts: If the system finds no active accounts, it 
+Alternative displays a message: "No active accounts found. Please contact 
+Flows your branch." 
+
+ 
+Table 5.Use-case scenario for user 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page32
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+
+Use Case ID  
+UC-LS-001 
+
+Name 
+
+Name  New Loan Account Setup 
+
+ Actor Loan Staff 
+
+This use case covers the transition from a manual application 
+to a live digital loan. It involves complex data entry where the 
+
+Description system acts as a "validator" to ensure that interest rates, 
+principal amounts, and durations stay within the legally 
+allowed limits of the institution. 
+
+1. Loan Staff is authenticated and logged in.  
+2. The Client's loan status is marked as "Pre-Approved" in the 
+
+Preconditions system.  
+3. All physical KYC and collateral documents have been 
+scanned and are ready for upload. 
+
+1. Staff selects 'New Loan Account Setup' and enters or 
+selects the specific Client ID.  
+
+2. Staff inputs the Principal amount, Interest rate, Duration, 
+and Payment Frequency.  
+
+Basic Flow 
+3. The Staff confirms the final details and clicks 'Submit'. 
+4. The System generates a unique Loan Account ID, 
+
+calculates the repayment schedule, and marks the loan as 
+"Active". 
+
+1. Policy Violation: If the interest or principal exceeds the 
+allowed limit, an error code displayed, and the staff must 
+either correct the data or escalate the request to the Branch 
+
+Alternative 
+Manager.  
+
+Flows 
+2. Missing Documentation: If the system detects a lack of 
+required files, it alerts the user to upload the data before the 
+'Submit' button is enabled. 
+
+Post- An active loan account is created, linked to the client, and a 
+Condition legal repayment schedule is stored in the database. 
+
+ 
+Table 6. Use-case scenario for  New Loan Account Setup 
+ 
+ 
+ 
+
+ Page33
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+
+Use Case Approve Saving Account Request 
+Name 
+
+Actor Branch manager 
+
+Allows the Branch manager to review and authorize a new 
+Description savings account request submitted by the Saving Stuff, 
+
+finalizing the account opening process. 
+
+The Branch manager must have successfully completed Login 
+Precondition (UC-A-001). A request from Saving Stuff (request approval) 
+
+must be pending in the manager's review queue. 
+
+1. Branch Manager accesses their 'Approval Queue'.  
+2. Manager selects a pending Savings Account Request. 
+3. System displays all client details, KYC verification status, 
+and initial deposit information. 
+
+Basic Flow 4. Manager reviews the data and compliance checks.  
+5. Manager selects 'Approve' or 'Reject' and provides a 
+mandatory reason (for rejection). 
+6. System updates the account status: "Approved" or 
+"Rejected." 
+
+The pending request is cleared from the queue. If approved, the 
+Post 
+
+Savings Account status changes to "Active." If rejected, the 
+Condition 
+
+Savings Stuff is notified. 
+
+1: Compliance Flagged: If the System detects a potential 
+compliance or fraud flag during review (Step 3), it displays a 
+"Warning: Review Flag" The Manager may override but must 
+
+Alternative 
+provide an expanded justification. 
+
+Flows 
+2: Manager Rejects: If the Manager selects 'Reject' (Step 5), 
+the System mandates entry of the rejection reason before 
+finalizing the action. 
+
+ 
+Table 7.Use-case scenario for branch manager to approve Saving Account Request 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page34
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+Use Case ID UC-L-004 
+
+Use Case Request Loan Statement 
+Name 
+
+Actor Loan Stuff 
+
+Allows the Loan Stuff to generate an official loan statement for 
+Description a client over a specified date range, which then requires 
+
+managerial approval. 
+
+The Loan Stuff must have successfully completed Login (UC-
+Precondition A-001). The client must have an active Loan Account (UC-L-
+
+003). 
+
+1. Loan Stuff selects 'Generate Statement' and enters the Client 
+ID and Loan Account ID.  
+2. Staff enters the Start Date and End Date for the statement 
+period.  
+
+Basic Flow 3. System retrieves all relevant transactions (payments, interest 
+charges) for the period.  
+4. System formats the data into the official statement template.  
+5. System submits the generated statement to the Branch 
+Manager for approve loan statement (UC-M-003). 
+
+Post The generated statement is created in a pending state. A 
+Condition notification is sent to the Branch Manager's approval queue. 
+
+1.  Future Date Range: If the Staff enters a future date, the 
+System displays an error: "Statement date range cannot extend 
+beyond today." 
+
+Alternative  
+Flows 2. Large Range Flag: If the requested range exceeds 24 months, 
+
+the System displays a warning: "Statement is for an extended 
+period. Manager must review extra carefully." (Optional 
+internal flag for UC-M-003). 
+
+ 
+Table 8.Use-case scenario for loan staff request loan statement 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page35
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+Use Case ID UC-S-002 
+
+Use Case Request Approval (Savings Account) 
+Name 
+
+Actor Saving Stuff 
+
+Allows the Saving Stuff to submit a newly created savings 
+Description account to the Branch Manager for final authorization and 
+
+activation. 
+
+The Saving Stuff must have successfully completed Login 
+(UC-A-001). The   create saving account process (UC-S-001) 
+
+Precondition 
+must be complete, and all required KYC documents must be 
+attached. 
+
+1. Saving Stuff reviews the completed client file for a new 
+savings account.  
+2. Staff selects 'Submit for Approval' for the account record.  
+3. System performs a final automated check for data 
+
+Basic Flow completeness.  
+4. System packages the request and places it in the Branch 
+Manager's approval queue.  
+5. System changes the account status to "Pending Manager 
+Review." 
+
+Post The savings account request is placed in the manager's queue. 
+Condition The Saving Stuff receives a confirmation receipt. 
+
+Incomplete Data: If the System detects missing KYC 
+Alternative documents (Step 3), it displays an error: "Cannot submit: 
+Flows Mandatory fields/documents are missing." The staff must 
+
+upload the Upload Data before re-submission. 
+
+Table 9.Use-case scenario for saving staff request approval 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page36
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+
+Use Case ID UC-M-001 
+
+Use Case Approve Loan Statement 
+Name 
+
+Actor Branch manager 
+
+Allows the Branch Manager to review and authorize a 
+Description generated loan statement before it is released to the client or 
+
+finalized for auditing. 
+
+The Branch Manager must have successfully completed Login 
+(UC-A-001). A statement request from Loan Stuff (request 
+
+Precondition loan statement) must be pending in the manager's review 
+queue. 
+
+1. Branch Manager accesses their 'Approval Queue' and selects 
+a pending Loan Statement.  
+2. System displays the statement in a view-only format, along 
+with the audit trail (who requested it).  
+3. Manager verifies the statement's accuracy against transaction 
+records.  
+
+Basic Flow 4. Manager selects either  'Authorize Statement' or 'Reject and 
+Reroute'.  
+5. If Authorized, the System digitally signs the statement and 
+marks it as "Finalized." 
+6. If Rejected, the System requires the Manager to enter a 
+reason and routes it back to the Loan Stuff for correction. 
+
+Post The statement is finalized and archived, or it is returned to 
+Condition Loan Stuff with a rejection note. 
+
+Manager Rejects: If the Manager selects 'Reject and Reroute' 
+Alternative (Step 4), the System prevents the action until a detailed 
+Flows rejection reason is entered into the system. 
+
+Table 10.Use-case scenario for branch approve loan statement 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page37
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+
+Use Case ID UC-M-005 
+
+UseCase Manage Account Balance 
+Name 
+
+Actor Head CEO 
+
+Enables the Head CEO to perform highly sensitive, direct 
+Description adjustments to client account balances with mandatory audit 
+
+logging. 
+
+The Head CEO must have successfully completed Login 
+Precondition (UC-A-001). The CEO must possess special privileges  
+
+1. Head CEO initiates 'Balance Adjustment' function.  
+2. System requires secondary   authentication . 
+3. CEO enters the Account ID, Adjustment Type, and 
+Amount.  
+4. CEO enters a mandatory, detailed justification code and 
+text.  
+
+Basic Flow 5. System displays the current balance, adjustment amount, 
+and proposed final balance. 
+6. CEO confirms the transaction.  
+7. System processes the adjustment, generates a unique 
+transaction ID, and logs the action with the CEO's digital 
+signature. 
+
+The account balance is updated. An irreversible, high-
+Post security audit log entry is created. The relevant Branch 
+Condition Manager is automatically notified of the change. 
+
+Missing Justification: If the CEO attempts to confirm without 
+Alternative a justification text (Step 4), the System displays an error: 
+Flows "Justification is mandatory for audit compliance." 
+
+Table 11.Use-case scenario for head CEO to manage account 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page38
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+
+Use Case ID UC-M-003 
+
+Use Case Request >100K Loan Account 
+Name 
+
+Actor Branch manager 
+
+Allows the Branch Manager to formally escalate a large-value 
+Description loan application (>100K currency units) to the Head CEO for 
+
+final, mandatory approval. 
+
+The Branch Manager must have successfully completed Login 
+(UC-A-001). The loan account must be created (UC-L-003) 
+
+Precondition and the requested amount must exceed the Branch Manager's 
+approval threshold. 
+
+1. Branch Manager accesses the loan account record.  
+2. Manager verifies all internal policy checks are met.  
+3. Manager enters a brief formal recommendation/justification 
+text.  
+4. Manager selects 'Escalate for CEO Approval'.  
+
+Basic Flow 5. System packages the entire loan file, recommendation, and 
+audit history. 
+ 6. System sends a notification to the Head CEO's approval 
+queue (approve branch request).  
+7. System locks the application status as "Pending CEO 
+Review." 
+
+The loan application is formally submitted to the Head CEO. 
+Post The Branch Manager loses control over modifying the loan 
+Condition 
+
+record until a decision is returned. 
+
+1: Threshold Not Met: If the loan amount is   >100K, the 
+System displays an error: "Loan amount is within branch limit. 
+Use standard approval." The flow terminates. 
+
+Alternative 
+2: Missing Recommendation: If the Manager attempts to 
+
+Flows 
+submit without entering a recommendation (Step 3), the 
+System displays an alert: "Mandatory recommendation text is 
+required for escalation." 
+
+Table 12.Use-case scenario for branch  request >100K loan account 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page39
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+
+Use Case ID 
+UC-ADM-004 
+
+ 
+
+UseCase 
+Delete Account 
+
+Name 
+
+ Actor Admin 
+
+This procedure allows the System Administrator to terminate 
+access for any actor who is no longer with the institution. It is 
+
+Description a critical security function that prevents "ghost access" and 
+ensures that the system's user directory remains accurate and 
+compliant with internal security policies. 
+
+1.The Admin must have successfully completed the Login 
+(UC-A-001) procedure.  
+2. The target account to be deleted must be in an "Inactive" or 
+
+Preconditions "Suspended" state to prevent accidental deletion of active 
+staff.  
+3. The Admin must have the specific "Super-User" 
+permissions required to modify the User Table. 
+
+1. The Admin navigates to the 'User Management' module and 
+searches for the target account by Name or User ID.  
+2. The Admin selects the 'Delete' option associated with the 
+specific user profile.  
+3. The System triggers a mandatory relationship with the 
+
+Basic Flow Login verification to confirm the Admin's identity before 
+proceeding.  
+4. The Admin confirms the deletion request via a final pop-up 
+dialogue box.  
+5. The System updates the database, removing the user's active 
+login credentials and revoking all linked permissions. 
+
+The user account is removed from the active directory; all 
+Post-
+
+access tokens are invalidated, and the event is logged in the 
+Condition 
+
+System Audit Trail for compliance review. 
+
+Table 13.Use-case scenario for Admin to Delete Account 
+ 
+ 
+
+ Page40
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+Use Case ID UC-M-007 
+
+Use Case 
+Approve Branch Request 
+
+Name 
+
+Actor Head CEO 
+
+Allows the Head CEO to review and finalize high-level 
+Description requests escalated from a Branch Manager (including >100K 
+
+loan accounts or other operational exceptions). 
+
+The Head CEO must have successfully completed Login (UC-
+Precondition A-001). A request (e.g., from request >100K loan account) 
+
+must be pending in the CEO's review queue. 
+
+1. Head CEO accesses their 'High-Priority Approval Queue'.  
+2. CEO selects a pending request  
+3. System displays the full request file, including the Branch 
+Manager's recommendation.  
+4. CEO selects either 'Final Approve' or 'Final Reject'.  
+
+Basic Flow 5. If Rejected, the System requires the CEO to enter a formal 
+rejection justification.  
+6. System processes the decision and updates the originating 
+record  
+7. System notifies the relevant Branch Manager and 
+originating staff. 
+
+The escalated branch request is permanently resolved. The 
+Post system updates the status of the related financial or operational 
+Condition record. 
+
+Reject Mandate: If the CEO selects 'Final Reject' (Step 5), the 
+Alternative System prevents the action until the mandatory rejection 
+Flows justification is entered. 
+
+Table 14.Use-case scenario for head CEO approve branch request 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page41
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+Use Case ID UC-C-002 
+
+Use Case Update Request 
+Name 
+
+Actor Client 
+
+Allows an authenticated Client to submit a formal request to 
+Description change non-financial personal information   that requires staff 
+
+approval. 
+
+The Client must have successfully completed Login (UC-A-
+Precondition 
+
+001). The client must have a current profile in the system. 
+
+1. Client selects the 'Update Request' function from their 
+profile dashboard.  
+2. System displays current personal data and prompts the 
+Client to select the field(s) they want to modify.  
+3. Client enters the new data and an optional explanation for 
+
+Basic Flow 
+the change.  
+4. Client attaches mandatory supporting documentation  
+5. Client submits the request. 
+6. System validates the submission and places the request into 
+the Saving Stuff or Branch manager review queue. 
+
+A new Update Request record is created with a unique 
+Post 
+
+tracking ID. The status is set to "Pending Staff Review," and 
+Condition 
+
+the Client receives an email confirmation. 
+
+Missing Document: If the Client fails to attach a mandatory 
+Alternative document (Step 4), the System displays an error: "Supporting 
+Flows document is required to submit the update request." 
+
+Submission is prevented. 
+
+Table 15.Use-case scenario for client request balance update 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page42
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+Use Case ID UC-L-002 
+
+Use Case Upload Loan Doc 
+Name 
+
+Actor Loan Stuff 
+
+Allows the Loan Staff to upload necessary documents or key 
+Description 
+
+data files related to a client's loan application or account  
+
+The Loan Stuff must have successfully completed Login 
+Precondition (UC-A-001). The target Loan Account record must exist in 
+
+the system. 
+
+1. Loan Stuff navigates to the specific Client's Loan Account 
+file. 
+2. Staff selects the 'Upload Documents' function.  
+3. Staff selects the file from their local machine and 
+designates the document type  
+
+Basic Flow 
+4. Staff confirms the upload.  
+5. System validates the file format   and scans for basic 
+integrity.  
+6. System uploads the file and securely links them to the 
+Loan Account record. 
+
+The uploaded document     are securely stored and viewable 
+Post within the Client's Loan Account file. An audit entry is 
+Condition logged, recording the file name and the uploading staff 
+
+member. 
+
+1: Unsupported Format: If the uploaded file format is not 
+supported (Step 5), the System displays an error: "File format 
+
+Alternative must be PDF or JPEG. Upload failed." 
+Flows 2: File Size Limit: If the file size exceeds the system limit the 
+
+System displays an error: "File too large. Please compress or 
+split the file." 
+
+ 
+Table 16. Use-case scenario for loan staff upload loan doc 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page43
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+
+Use Case ID UC-A-002 
+
+Use Case Logout 
+Name 
+
+Actor All Actors 
+
+Allows any authenticated user to securely end their session and 
+Description prevent unauthorized system access. 
+
+The user must be successfully Logged In (UC-A-001) and 
+Precondition must not have any unsaved data pending (e.g., an unfinished 
+
+create  loan account form). 
+
+1. User selects the 'Logout' button/link. 
+2. System prompts user for confirmation: "Are you sure you 
+want to log out?" 
+
+Basic Flow 3. User confirms.  
+4. System immediately terminates the user's session variables 
+and clears any session data.  
+5. System redirects the user to the Login page. 
+
+Post The user's session is terminated. The user is redirected to the 
+Condition public-facing Login screen. 
+
+Unsaved Data: If the system detects unsaved data. it displays a 
+Alternative 
+
+warning: "You have unsaved changes. Logout anyway?" If the 
+Flows user cancels, the flow terminates. 
+
+ 
+Table 17.Use-case scenario to logout 
+ 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ Page44Failed to approve savings account
+Failed to reject savings account
+Download functionality - to be implemented
+and add button of cancel or corresponding function whenever watching document or view action is performed on each role
+
+
+
+ 
+Endekise Microfinance|2026 
+
+3.5 Sequence diagram 
+
+The sequence diagram of our system is used primarily to show the interactions between 
+objects in the sequential order. The main purpose of a sequence diagram is to define event 
+sequences that result in some desired outcome. Our Sequence diagrams are shows graphically 
+how objects interact with each other via messages in the execution of a use case or operation. 
+The sequence diagrams for the above sequence of actions are done as follows. 
+ 
+ 
+
+ 
+Figure 3.sequence diagram for login 
+  
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+ 
+Figure 4. Sequenes diagram of client request 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 5.sequenes diagram of CEO approval request 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 6.sequenes diagram of client doc validation 
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 7. Sequenes diagram of request >1ook loan request 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+ 
+ 
+ 
+Figure 8.Sequenes diagram of staff request approval or rejection 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 9.Sequenes diagram to start loan account 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 10.Sequenes diagram for enter credentials 
+ 
+
+ 
+
+  
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 11.Sequence diagram of loan doc validation 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 12.Sequence diagram of client update request 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 13.Sequence diagram of logout  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+3.6 Activity Diagram 
+
+The accompanying set of eight detailed Activity diagrams establishes a comprehensive 
+overview of the Edekise Microfinance operational processes, detailing workflows from high-
+level corporate approvals to routine client data management and system access; these 
+diagrams employ standard flowchart symbols to illustrate sequential steps, critical decision 
+points, and definitive outcomes across core functions. Ultimately these visual representations 
+serve to clearly define standard operating procedures and decision logic across key 
+operational and administrative functions within Edekise Microfinance, ensuring clarity on 
+responsibilities, data flow, and the necessary steps for both successful execution  and effective 
+handling of failures. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page56
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 14. Activity diagram of login 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 15.Activity diagram of saving account request 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 16.Activity diagram of client upload data 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 17. Activity diagram of loan data upload 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 18.Activity diagram of loan approval 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 19.Activity diagram of  >100k loan account request 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 20.Activity diagram of  >100k loan account approval 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 21.Activity diagram of  CEO approval 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+3.7 Class Diagram Description 
+
+The Class Diagram for the Edekise Microfinance System represents the static structure of the system, 
+illustrating the essential objects, their internal attributes, and the behavioral methods that govern their 
+operation. Unlike the dynamic views (Sequence and Activity diagrams), this diagram defines the 
+blueprints of the system’s data and the rules of interaction between different modules. 
+The architecture follows a Generalized approach where common user behaviors are captured in a base 
+User class, while specific roles (Admin, Manager, Staff) extend this functionality. Financial products 
+are modeled using an Abstract Account class to ensure that both Loans and Savings maintain core data 
+integrity—such as balance tracking and interest calculation—while allowing for unique specialization 
+(e.g., term months for loans or deposit limits for savings). 
+List of Class Entities 
+
+ User  
+
+ Admin  
+
+ Branch Manager  
+
+ Loan Staff  
+
+ Saving Staff  
+
+ Client 
+
+ Account  
+
+ Loan Account  
+
+ Saving Account 
+
+ Request Transaction  
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page65
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 22.Class Diagram  
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+3.8 User interface prototyping 
+
+ 
+ 
+
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 23.User interface prototyping  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+CHAPTER FOUR: SYSTEM DESIGN 
+
+4.1 Introduction 
+
+During the requirement analysis phase, we identified the functional and non-functional 
+requirements of the Edekise Microfinance System and produced the analysis model, which 
+clearly depicts the problem domain. Now, in this phase, we transition to the solution domain 
+in software development. Therefore, we focus on transforming the analysis model into the 
+design model, incorporating non-functional requirements and constraints. 
+
+The purpose of designing is to provide a clear direction on how the system will be built and to 
+gather sufficient information to drive the actual implementation. It is based on a deep 
+understanding of the software model. The objectives of our system design are to model the 
+system with high quality. Implementing a high-quality system depends on the nature of our 
+design. If the system is designed effectively, it will be easy to make changes to it after 
+deployment. Additionally, our project design focuses on decomposing the system into 
+manageable parts. This helps us tackle problems in a modular approach. It also describes 
+database-related concepts such as relational schema and normalization. 
+
+This chapter outlines the architectural design (three-tier), deployment strategy, database 
+design (ER diagram), relational mapping, and normalization to ensure the system handles 
+loan origination, payment scheduling from origination dates, advance/multi-month payments, 
+digitized client records, automated reminders, and inclusive tracking for marginalized groups. 
+
+4.2 Purpose of System Design Document 
+
+The purpose of the Software Design Document is to provide a detailed description of the 
+design of our system and to allow the software development process to proceed with an 
+understanding of what is to be built and how it is expected to be built. Here, in our system, we 
+describe the purpose of developing Microfinance System. 
+
+This System Design Document serves several critical purposes for the project: 
+
+1. Development Road-map: It provides the development team with a comprehensive, 
+unambiguous specification of the system's structure and behavior. 
+
+2.  Stakeholder Communication:  It acts as a formal communication tool to ensure a shared 
+understanding of the technical vision among project sponsors, managers, and technical staff. 
+
+3.  Basis for Implementation: It is the primary reference for writing code, creating databases, 
+and configuring infrastructure. 
+
+4.  Quality Assurance Framework: It establishes the architectural constraints and module 
+interfaces that guide testing (unit, integration, system). 
+
+5.  Future Maintenance & Scalability: It documents design decisions and the rationale behind 
+them, aiding future developers in understanding, modifying, and extending the system as per 
+the scalability requirements. 
+
+ Page70
+
+
+
+ 
+Endekise Microfinance|2026 
+
+4.2.1 Design Scope 
+
+The design scope encompasses the complete technical specification of the Edekise 
+Microfinance System's software and data components. It includes: 
+
+ System Architecture: The high-level structure, including architectural patterns, 
+component decomposition, and their interactions. 
+
+ Control Mechanisms: The design of access control, workflow controls, business rule 
+enforcement, and transaction validation. 
+
+ Data Management: The complete logical and physical data model, including database 
+schema, relationships, constraints, and data integrity measures. 
+
+ Security Measures: Implementation strategies for authentication, authorization, 
+encryption, audit trails, and input validation. 
+
+ Performance and Scalability: Design considerations to meet response time requirements 
+and support 20% annual growth. 
+
+ User Experience (UX): Interface design principles for both clients and staff, focusing on 
+efficiency and accessibility. 
+
+ Compliance: Design considerations for financial regulations, data protection, and audit 
+requirements. 
+
+ 
+
+Out of Scope: This document does not cover: 
+
+ Detailed graphic design (colors, fonts) of the user interface 
+ Specific brand marketing materials 
+ Detailed project management plans or cost estimates 
+ Hardware procurement specifications 
+
+4.3 Architectural Design 
+
+ This high-level design ensures logical separation of concerns, making the system modular, 
+scalable, maintainable, and secure. It directly addresses the functional requirements while 
+supporting non-functional aspects like NBE compliance, data integrity. The architecture 
+logically divides the system into three main tiers: 
+
+ Presentation Tier (Client Layer) — Responsible for user interaction via a responsive web 
+interface (built with modern frameworks like React.js or Vue.js). It handles role-based 
+views , input forms, dashboards for reports, and inclusive features . 
+
+ Application/Business Logic Tier (Middle Layer) — Core processing layer that 
+implements business rules, such as accurate payment scheduling from loan origination 
+dates, validation of deposits/withdrawals, atomic balance updates, request routing and 
+status tracking, automated SMS/email reminders loan classification (Performing, 
+Substandard, Doubtful, Loss) with provisioning, and inclusivity tagging/reporting. 
+
+ Data Tier (Database Layer) — Manages persistent storage with entities like Client, 
+LoanAccount, SavingAccount, Transaction, Request, and Statement. Ensures data 
+integrity through transactions and supports efficient querying for regulatory reports. 
+
+ 
+
+ Page71
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Figure 24.Architectural view 
+ 
+
+4.4 Logical View 
+
+The logical view of the Edekise Microfinance System is organized using a layered 
+architecture to ensure separation of concerns, maintainability, scalability, and clear 
+dependency management. This design aligns with standard enterprise application patterns 
+while adapting to the specific needs of a web-based microfinance system, including role-
+based access. 
+
+The system is decomposed into logical components: 
+
+ User Management Component — Handles authentication, RBAC and session 
+management. 
+
+ Account Management Component — Manages creation, modification, and closure of 
+LoanAccount and SavingAccount. 
+
+ Transaction Processing Component — Validates and processes deposits, withdrawals, 
+and repayments with atomic integrity. 
+
+ Workflow & Approval Component — Manages requests and routing to approvers 
+(Branch Manager/Admin). 
+
+ Reporting & Reminder Component — Generates statements, system/branch 
+performance reports (Admin access), and automated SMS/email reminders. 
+
+ Inclusivity & Compliance Component — Tracks client demographics and enforces 
+NBE rules. 
+
+The system is divided into the following logical layers: 
+
+1. Presentation Layer (Application Layer) This layer contains all the boundary classes that 
+represent the user interfacesthe user sees. It is responsible for handling user input, displaying 
+data, and providing feedback. 
+
+ Includes web pages, forms, dashboards, and components for role-based views. 
+ Technologies: HTML, CSS, JavaScript with a framework such as React.js or Vue.js 
+
+for responsive accessible UI . 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ Depends on the Business Services Layer for processing user requests. 
+ This layer straddles the client-to-mid-tier boundary, communicating via HTTPS. 
+
+2. Business Services Layer (Controller / Process Layer) This layer contains all the controller 
+classes that act as use case managers, orchestrating the application behavior and enforcing 
+business rules. 
+
+ Manages core workflows such as account creation, transaction processing, payment 
+scheduling from origination date, advance/bulk payments, request submission and 
+approvalemail reminders, and loan classification/provisioning. 
+
+ Enforces Role-Based Access Control (RBAC) — ensuring only Admin can view system 
+reports, monitor branch performance, and approve high-value or branch requests. 
+
+ Handles validation, coordination between domain objects, and transaction integrity. 
+ This layer represents the client-to-mid-tier border and depends on the Domain / Process 
+
+Objects Layer. 
+
+3. Domain / Process Objects Layer This layer contains the core domain model classes 
+representing business entities and logic that are independent of UI and persistence concerns. 
+
+ Includes classes such as Client, Account (abstract, with LoanAccount and 
+SavingAccount subclasses), Transaction, Request, Statement, and User (with role 
+enumeration including Admin). 
+
+ Encapsulates business rules. 
+ Straddles the mid-tier separation, used by both Business Services and Data Access layers. 
+
+4. Data Access / Persistence Layer (Middleware Layer) This layer provides access to 
+persistent storage and abstracts database operations. 
+
+ Supports interaction with a Relational DBMS (MySQL or PostgreSQL). 
+ Includes repository classes or ORM mappings for CRUD operations on domain 
+
+objects. 
+ Ensures data integrity, atomic transactions, and efficient querying for reports and 
+
+compliance needs. 
+ No direct dependency on presentation or business services — accessed only through 
+
+the Domain layer. 
+
+5. Base Reuse / Utility Layer This cross-cutting package includes reusable utility classes and 
+patterns used across layers. 
+
+ Supports common functions such as list management, date utilities, validation helpers, 
+logging, and security patterns. 
+
+ Promotes code reuse and consistency throughout the application. 
+
+ Page73
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Figure 25.Logical view 
+
+ 
+ 
+
+4.5 Process View 
+
+The process view describes the dynamic aspects of the system architecture by illustrating the 
+tasks involved in the system's execution, their interactions, configurations, and the allocation 
+of objects and classes to these processes. This view focuses on concurrency, distribution, 
+performance, and scalability, showing how the system behaves at runtime. 
+
+The Edekise Microfinance System is a web-based application deployed on a server with 
+multiple concurrent users (Loan Staff, Saving Staff, Branch Manager, Admin) across 
+branches. The process model is designed to handle concurrent operations efficiently while 
+ensuring data integrity and compliance with NBE regulations. 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Figure 26.process view 
+
+ 
+
+Key Processes and Their Responsibilities: 
+
+ Client Session Process 
+
+1. One instance is created for each active user session (Loan Staff, Saving Staff, 
+Branch Manager, or Admin). 
+
+2. Manages user authentication, role-based access, and session state. 
+3. Coordinates client requests. 
+4. Allocation: Contains instances of Presentation Layer components and 
+
+controllers from the Business Services Layer. 
+5. Analysis Mechanisms: Distribution, Security (RBAC), Session Management. 
+
+ Account Management Process 
+
+1. Shared process handling concurrent account operations. 
+2. Ensures atomicity during balance updates and transaction processing to 
+
+prevent race conditions. 
+3. Allocation: Executes domain objects (Account, LoanAccount, 
+
+SavingAccount, Transaction) and Data Access Layer operations. 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+4. Analysis Mechanisms: Concurrency Control, Persistency. 
+
+ Request Approval Process 
+
+1. Dedicated process for managing approval workflows. 
+2. Routes high-value loan requests or branch requests to the appropriate 
+
+approver (Branch Manager or Admin). 
+3. Supports asynchronous notification. 
+4. Allocation: Uses Request and User domain classes; one instance per pending 
+
+request workflow. 
+5. Analysis Mechanisms: Distribution, Workflow Management. 
+
+ Reporting Process 
+
+1. Shared process accessible only to Admin role. 
+2. Generates system-wide reports, branch performance metrics. 
+3. Runs heavy queries efficiently with caching where appropriate. 
+4. Aggregates data from Client, Account, Transaction classes via Data Access 
+
+Layer. 
+
+ Reminder Scheduler Process 
+
+1. Background daemon process . 
+2. Periodically checks due dates and triggers automated SMS/email reminders 
+
+for repayments. 
+3. Runs independently of user sessions. 
+4. Allocation: Uses Transaction and Client domain objects; integrates with 
+
+external SMS gateway. 
+5. Analysis Mechanisms: Scheduling, External Integration. 
+
+ External  Integration Process 
+
+1. Handles communication with external systems. 
+2. Acts as an adapter for legacy or third-party interfaces. 
+3. Allocation: Implements adapter pattern using Base Reuse utilities. 
+4. Analysis Mechanisms: Legacy/External Interface. 
+
+Concurrency and Threading Model: 
+
+ The system uses a multi-threaded web server where each user request spawns or reuses a 
+thread from a pool. 
+
+ Critical sections are protected using database transactions or locks to ensure consistency. 
+ Background tasks like reminders, report generation run on separate scheduled threads. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ Page76
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Figure 27.Process view for Loan 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+ 
+ 
+Figure 28.Process view  For Saving 
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+4.6 Deployment view 
+
+The deployment view describes the physical architecture of the proposed Microfinance  
+System for Edekise Microfinance. It illustrates how the system components are deployed 
+across hardware nodes, servers, and external services to ensure efficient operation, security, 
+scalability, and compliance with the National Bank of Ethiopia (NBE) directives. 
+
+The system adopts a centralized web-based architecture with a single head office server 
+hosting the core application and database. This design allows all branches and mobile users to 
+access the system securely over the internet while maintaining centralized control over data 
+integrity, regulatory compliance, and backup procedures. 
+
+4.6.1. Deployment Components and Nodes 
+
+A. Head Office (Addis Ababa) – Main Server Room   
+
+Application & Database Server 
+
+4. Hardware: Dedicated server (or virtual machine on cloud/private hosting) 
+5. Operating System: Linux (Ubuntu Server recommended) 
+6. Web Application Server: Apache Tomcat or Nginx + Spring Boot (Java-based backend) 
+7. Central Database: PostgreSQL or MySQL (ACID-compliant relational database) 
+
+Purpose: 
+
+ Hosts the complete web application (front-end + back-end). 
+ Exposes REST APIs for mobile application integration. 
+ Implements core business logic (loan/savings management, transaction processing, 
+
+repayment scheduling). 
+ Stores all persistent data: client profiles  loan accounts, savings accounts, transactions, 
+
+repayment schedules, payment history, and SMS logs. 
+
+Backup & Monitoring Server: 
+
+ Daily Automated Backup: Encrypted replication of the central database. 
+ Monitoring and Logging: real-time system health monitoring, performance tracking, and 
+
+audit logs. 
+
+B. Branch OfficesBranch Workstations / Thin Clients 
+
+ Standard PCs or laptops with modern web browsers . 
+ Access the system via secure HTTPS connection to the head office server. 
+ Used by branch staff for loan/savings operations, client management, and reporting. 
+
+ Web App Staff System 
+
+b. Deployed on staff smartphones (minimum Android 8.0). 
+c. Supports offline transaction queuing (data syncs when internet is available). 
+d. Features email confirmation on successful payments.  
+
+Communication and Security 
+
+ Page79
+
+
+
+ 
+Endekise Microfinance|2026 
+
+5. Authentication: JWT  or OAuth2 for secure access. 
+6. Data in transit: Encrypted end-to-end. 
+7. Data at rest: Encrypted backups and database-level encryption (optional). 
+8. Firewall & Access Control: Head office server protected by firewall; role-based 
+
+access control  for staff roles. 
+
+ Key Improvements Addressed by This Deployment 
+
+ Digitization of Records: Replaces manual paper files with a centralized database, 
+enabling instant retrieval of client history and transaction data. 
+
+ Accurate Loan Scheduling: Repayment schedules calculated from loan origination date. 
+ Flexible Payments: Supports advance or bulk payments without system restrictions. 
+ Automated email Reminders: Eliminates manual follow-ups and reduces delays/defaults. 
+ NBE Compliance: Automated report generation and submission to the regulatory portal. 
+ Financial Inclusion: Client data includes tags for women and persons with disabilities, 
+
+supporting inclusive reporting and outreach. 
+
+4.6.2 Size and Performance 
+
+Quality 
+Target Level Implementation Measures 
+
+Attribute 
+
+Redundant power, internet failover, automated 
+Availability Best uptime 
+
+restarts, monitoring alerts 
+ACID transactions, no Database replication, daily backups, transaction 
+
+Reliability 
+data loss rollback on failure 
+
+HTTPS, JWT/OAuth2, role-based access control 
+Security High (financial data) 
+
+(RBAC), encrypted backups, audit logging 
+Stateless design, load balancer planned for future 
+
+Scalability Horizontaladd servers 
+growth 
+
+Easy updates & Modular Spring Boot architecture, detailed logs 
+Maintainability 
+
+debugging (SLF4J + ELK), CI/CD pipeline (Git) 
+Web app (browser-based),  database (standard 
+
+Portability Cross-platform 
+SQL) 
+
+Intuitive for non- Simple UI, offline support on mobile, SMS 
+Usability 
+
+technical staff confirmations 
+ 
+Table 18.Size and Performance 
+
+ 
+
+ Page80
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+ 
+Figure 29.Deployment view 
+
+4.7. Database Design 
+
+The database design phase is a critical step in the development System for Edekise 
+Microfinance. This phase translates the functional and non-functional requirements identified 
+in previous chapters into a structured, efficient, and scalable data model. The primary 
+objective is to create a relational database schema that supports all core operationssuch as 
+loan and savings account management, transaction processing, repayment scheduling, 
+statement generation, automated SMS notifications, and regulatory reportingwhile ensuring 
+data integrity, security, and compliance with National Bank of Ethiopia directives. 
+
+The database is designed using the relational model and will be implemented using 
+PostgreSQL  to provide ACID compliance, high performance, and robust backup and 
+recovery mechanisms. The schema is normalized to the third normal  to eliminate data 
+redundancy, reduce anomalies, and optimize storage, while maintaining efficient query 
+performance for frequent operations like transaction history retrieval and inclusion reporting 
+for women and persons with disabilities. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+4.7.1 Actors 
+
+The system recognizes six distinct actors, each with specific responsibilities that influence 
+data access and operations: 
+
+Actor Responsibilities 
+
+Receives SMS reminders and confirmations, views statements, benefits from 
+Client 
+
+digitized records. 
+Creates and manages loan accounts, processes repayments, generates loan 
+
+Loan Staff 
+statements. 
+
+Saving 
+Creates and manages savings accounts, processes deposits and withdrawals. 
+
+Staff 
+Branch Oversees branch operations, views branch performance reports, manages local 
+Manager staff. 
+
+Views system-wide reports, views branch performance across all locations, 
+Admin approves/rejects high-value loans (>100k ETB), approves/rejects branch 
+
+requests. 
+Automatically sends SMS notifications, generates scheduled reports, updates 
+
+System 
+repayment statuses. 
+
+Table 19.Actor Responsibilities 
+
+ 
+
+4.7.2 Conceptual Data Model 
+
+The conceptual data model identifies the main entities and their relationships, providing a 
+high-level view independent of implementation details. 
+
+The primary entities are Client, LoanAccount, SavingsAccount, Transaction, 
+PaymentSchedule, Staff, Admin, Branch, SMSLog, and AdminApproval. These entities 
+capture all necessary data for account management, transaction processing, approval 
+workflows, notifications, and reporting. 
+
+Key relationships include: 
+
+ A Client can have multiple LoanAccounts and SavingsAccounts. 
+ A LoanAccount has one PaymentSchedule and multiple Transactions. 
+ A SavingsAccount has multiple Transactions. 
+ Staff perform multiple Transactions and belong to one Branch. 
+ Admin performs multiple approvals (for high-value loans or branch requests). 
+ Client receives multiple SMS notifications. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ Page82
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+4.7.3 Logical Database Design 
+
+The logical design defines the tables, attributes, primary keys, foreign keys, and constraints. 
+
+Client Table Stores client information, including inclusion tags for women and persons with 
+disabilities. 
+
+ client_id (VARCHAR, Primary Key) 
+ full_name (VARCHAR, NOT NULL) 
+ phone_number (VARCHAR, UNIQUE) 
+ address (TEXT) 
+ gender (VARCHAR) 
+ disability_status (BOOLEAN, DEFAULT FALSE) 
+ registration_date (DATE, NOT NULL) 
+
+LoanAccount Table Stores loan details with accurate origination-date scheduling. 
+
+3. loan_id (VARCHAR, Primary Key) 
+4. client_id (VARCHAR, Foreign Key → Client) 
+5. principal_amount (DECIMAL(15,2), NOT NULL) 
+6. interest_rate (DECIMAL(5,2), NOT NULL) 
+7. term_months (INTEGER, NOT NULL) 
+8. origination_date (DATE, NOT NULL) 
+9. status (VARCHAR, DEFAULT 'Active') 
+10. approval_status (VARCHAR, DEFAULT 'Pending') 
+11. total_repayable (DECIMAL(15,2)) 
+
+PaymentSchedule Table Stores calculated repayment installments. 
+
+VI. schedule_id (VARCHAR, Primary Key) 
+VII. loan_id (VARCHAR, Foreign Key → LoanAccount) 
+VIII. installment_number (INTEGER, NOT NULL) 
+IX. due_date (DATE, NOT NULL) 
+X. amount_due (DECIMAL(15,2), NOT NULL) 
+XI. amount_paid (DECIMAL(15,2), DEFAULT 0) 
+XII. status (VARCHAR, DEFAULT 'Pending') 
+
+SavingsAccount Table Manages savings balances and interest. 
+
+ savings_id (VARCHAR, Primary Key) 
+ client_id (VARCHAR, Foreign Key → Client) 
+ balance (DECIMAL(15,2), DEFAULT 0) 
+ interest_rate (DECIMAL(5,2), DEFAULT 0) 
+ open_date (DATE, NOT NULL) 
+ status (VARCHAR, DEFAULT 'Active') 
+
+Transaction Table Records all financial movements with atomic updates. 
+
+2. transaction_id (VARCHAR, Primary Key) 
+3. account_id (VARCHAR, NOT NULL) 
+4. account_type (VARCHAR, CHECK (account_type IN ('Loan','Savings'))) 
+
+ Page83
+
+
+
+ 
+Endekise Microfinance|2026 
+
+5. amount (DECIMAL(15,2), NOT NULL) 
+6. transaction_type (VARCHAR, NOT NULL) 
+7. transaction_date (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP) 
+8. staff_id (VARCHAR, Foreign Key → Staff) 
+
+Staff Table Manages employee access for LoanStaff, SavingStaff, and BranchManager roles. 
+
+ staff_id (VARCHAR, Primary Key) 
+ full_name (VARCHAR, NOT NULL) 
+ username (VARCHAR, UNIQUE) 
+ password_hash (VARCHAR, NOT NULL) 
+ role (VARCHAR, NOT NULL, CHECK (role IN ('LoanStaff', 'SavingStaff', 
+
+'BranchManager'))) 
+ branch_id (VARCHAR, Foreign Key → Branch) 
+ email (VARCHAR) 
+ phone_number (VARCHAR) 
+
+Admin Table Dedicated table for the Admin role with elevated privileges. 
+
+ admin_id (VARCHAR, Primary Key) 
+ full_name (VARCHAR, NOT NULL) 
+ username (VARCHAR, UNIQUE) 
+ password_hash (VARCHAR, NOT NULL) 
+ email (VARCHAR) 
+ phone_number (VARCHAR) 
+ last_login (TIMESTAMP) 
+
+Approval Table Records approvals/rejections . 
+
+ approval_id (VARCHAR, Primary Key) 
+ loan_id (VARCHAR, Foreign Key → LoanAccount) 
+ branch_id (VARCHAR, Foreign Key → Branch) 
+ request_type(VARCHAR,CHECK(request_typeIN ) 
+ ('HighValueLoan','BranchRequest'))) 
+ approval_status (VARCHAR, DEFAULT 'Pending') 
+ approval_date (TIMESTAMP) 
+ comments (TEXT) 
+
+Branch Table Stores branch information. 
+
+ branch_id (VARCHAR, Primary Key) 
+ name (VARCHAR, NOT NULL) 
+ location (VARCHAR) 
+
+4.7.4 Physical Database Design Considerations 
+
+Primary keys use UUIDs (VARCHAR) for global uniqueness. Foreign keys enforce 
+referential integrity with ON DELETE RESTRICT and ON UPDATE CASCADE. Indexes 
+are created on frequently queried columns (client_id, loan_id, transaction_date, due_date, 
+staff_id, admin_id, approval_status). Monetary values use DECIMAL(15,2) for precision. 
+Constraints include CHECK for positive amounts, valid interest rates, and role/request types. 
+The backup strategy involves daily full encrypted backups with incremental logs stored off-
+site for disaster recovery. 
+
+ Page84
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+4.8. Entity-Relationship Model 
+
+The conceptual data model represents the high-level structure of the Edekise Microfinance  
+System database. It identifies the main entities, their attributes, and the relationships among 
+them, providing a clear and abstract view of the data requirements without focusing on 
+implementation details. This model serves as the foundation for the logical and physical 
+designs and ensures that all functional requirementssuch as accurate loan scheduling based on 
+origination date, flexible payments, digitized client records, automated notifications, high-
+value loan approvals, and inclusive reportingare fully supported. 
+
+The model consists of ten core entities: Client, LoanAccount, SavingsAccount, 
+PaymentSchedule, Transaction, Staff, Admin, AdminApproval, SMSLog, and Branch. The 
+Client entity is central, as all financial services revolve around clients. Relationships are 
+defined with appropriate cardinalities and participation constraints to reflect real-world 
+business rules of Yemsrach Microfinance Institution. 
+
+ 
+
+ Page85
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Figure 30.Entity Relationship Model 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+
+Key Entities and Their Roles 
+
+ Client: The primary entity representing low-income individuals or small enterprises. It 
+stores personal for financial inclusion reporting. 
+
+ LoanAccount: Captures loan details and links to approval workflows for high-value 
+loans (>100k ETB). 
+
+ SavingsAccount: Manages savings balances and interest accrual. 
+ PaymentSchedule: Holds calculated installment details based on origination date for 
+
+accurate scheduling. 
+ Transaction: Records all financial movements . 
+ Staff: Represents operational staff with role-based access (LoanStaff, SavingStaff, 
+
+BranchManager). 
+ Admin: Dedicated entity for administrators with system-wide privileges. 
+ AdminApproval: Tracks approval/rejection actions for high-value loans and branch 
+
+requests. 
+ Branch: Stores branch information for location-based reporting and staff assignment. 
+
+Relationships, Cardinalities, and Participation 
+
+The relationships are designed to enforce business rules while allowing flexibility: 
+
+ Client – LoanAccount (OwnsLoan) Cardinality: 1:N One client can have many loan 
+accounts Participation: Mandatory on LoanAccount (loan cannot exist without client), 
+Optional on Client (client may have no loan) 
+
+ Client – SavingsAccount (OwnsSaving) Cardinality: 1:N Participation: Mandatory on 
+SavingsAccount, Optional on Client 
+
+ Client – SMSLog (Receives) Cardinality: 1:N Participation: Mandatory on SMSLog, 
+Optional on Client 
+
+ LoanAccount – PaymentSchedule (HasSchedule) Cardinality: 1:N Participation: 
+Mandatory on both (every loan must have a schedule) 
+
+ LoanAccount – Transaction (HasLoanTransaction) Cardinality: 1:N Participation: 
+Optional on both (transactions occur over time) 
+
+ LoanAccount – AdminApproval (RequiresApproval) Cardinality: 1:N Participation: 
+Optional on LoanAccount (only high-value loans), Mandatory on AdminApproval 
+
+ SavingsAccount – Transaction (HasSavingTransaction) Cardinality: 1:N Participation: 
+Optional on both 
+
+ Staff – Transaction (Processes) Cardinality: 1:N Participation: Mandatory on 
+Transaction (all transactions require staff), Optional on Staff 
+
+ Staff – Branch (AssignedTo) Cardinality: N:1 Participation: Mandatory on Staff (staff 
+must belong to a branch), Optional on Branch 
+
+ Admin – AdminApproval (Provides) Cardinality: 1:N Participation: Mandatory on 
+AdminApproval, Optional on Admin 
+
+ AdminApproval – Branch (RequiresBranchApproval) Cardinality: N:1 Participation: 
+Optional on both (only for branch requests) 
+
+ 
+
+ 
+
+ Page87
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 31.Entity Relationship Diagram 
+ 
+ 
+ 
+ 
+
+4.9 Entity Description Tables 
+
+This section provides detailed descriptions of each entity to Edekise Microfinance System 
+database. Each table lists the columns, data types, descriptions, and constraints. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+Column Name Data Type Description Constraints 
+
+Unique identifier for PRIMARY KEY, NOT 
+client_id VARCHAR(50) 
+
+each client NULL 
+full_name VARCHAR(100) Full name of the client NOT NULL 
+
+Client's contact phone 
+phone_number VARCHAR(20) UNIQUE, NOT NULL 
+
+number (for SMS) 
+Physical address of the 
+
+address TEXT  
+client 
+
+CHECK (IN 
+gender VARCHAR(10) Gender of the client 
+
+('Male','Female','Other')) 
+Flag indicating if client 
+
+disability_status BOOLEAN DEFAULT FALSE 
+has disability 
+Date when client 
+
+registration_date DATE NOT NULL 
+registered 
+
+Table 20.Client Table 
+ 
+Column Name Data Type Description Constraints 
+
+Unique identifier for each PRIMARY KEY, NOT 
+loan_id VARCHAR(50) 
+
+loan NULL 
+Reference to the client FOREIGN KEY → 
+
+client_id VARCHAR(50) 
+owning the loan Client, NOT NULL 
+
+NOT NULL, CHECK (> 
+principal_amount DECIMAL(15,2) Original loan amount 
+
+0) 
+NOT NULL, CHECK (> 
+
+interest_rate DECIMAL(5,2) Annual interest rate 
+0) 
+NOT NULL, CHECK (> 
+
+term_months INTEGER Loan duration in months 
+0) 
+
+Date loan was issued (for 
+origination_date DATE NOT NULL 
+
+accurate scheduling) 
+status VARCHAR(20) Current status of the loan DEFAULT 'Active' 
+
+Approval status for high-
+approval_status VARCHAR(20) DEFAULT 'Pending' 
+
+value loans 
+total_repayable DECIMAL(15,2) Total amount to be repaid  
+Table 21.LoanAccount Table 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ Page89
+
+
+
+ 
+Endekise Microfinance|2026 
+
+Column Name Data Type Description Constraints 
+
+Unique identifier for PRIMARY KEY, NOT 
+schedule_id VARCHAR(50) 
+
+each installment NULL 
+FOREIGN KEY → 
+
+loan_id VARCHAR(50) Reference to the loan 
+LoanAccount, NOT NULL 
+
+Sequence number of 
+installment_number INTEGER NOT NULL 
+
+the installment 
+Date when payment is 
+
+due_date DATE NOT NULL 
+due 
+Amount due for this 
+
+amount_due DECIMAL(15,2) NOT NULL, CHECK (> 0) 
+installment 
+
+amount_paid DECIMAL(15,2) Amount already paid DEFAULT 0 
+status VARCHAR(20) Payment status DEFAULT 'Pending' 
+Table 22.PaymentSchedule Table 
+ 
+Column 
+
+Data Type Description Constraints 
+Name 
+
+Unique identifier for each PRIMARY KEY, NOT 
+savings_id VARCHAR(50) 
+
+savings account NULL 
+Reference to the client FOREIGN KEY → Client, 
+
+client_id VARCHAR(50) 
+owning the account NOT NULL 
+
+DEFAULT 0, CHECK (>= 
+balance DECIMAL(15,2) Current savings balance 
+
+0) 
+interest_rate DECIMAL(5,2) Current interest rate DEFAULT 0 
+open_date DATE Date account was opened NOT NULL 
+status VARCHAR(20) Account status DEFAULT 'Active' 
+Table 23.Savings Account Table 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page90
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Column Name Data Type Description Constraints 
+
+Unique identifier for 
+transaction_id VARCHAR(50) PRIMARY KEY, NOT NULL 
+
+each transaction 
+Reference to loan or 
+
+account_id VARCHAR(50) NOT NULL 
+savings account 
+Type of account 
+
+account_type VARCHAR(20) CHECK (IN ('Loan','Savings')) 
+(Loan/Savings) 
+
+amount DECIMAL(15,2) Transaction amount NOT NULL, CHECK (> 0) 
+Type (Deposit, 
+
+transaction_type VARCHAR(20) Withdrawal, NOT NULL 
+Repayment) 
+Date and time of DEFAULT 
+
+transaction_date TIMESTAMP 
+transaction CURRENT_TIMESTAMP 
+Staff who processed the FOREIGN KEY → Staff, NOT 
+
+staff_id VARCHAR(50) 
+transaction NULL 
+
+Table 24.Transaction Table 
+ 
+Column Name Data Type Description Constraints 
+
+PRIMARY KEY, NOT 
+staff_id VARCHAR(50) Unique identifier for staff 
+
+NULL 
+staff_name VARCHAR(100) Full name of staff NOT NULL 
+s_phone_number VARCHAR(20) Staff contact number  
+staff_password VARCHAR(255) Hashed password NOT NULL 
+
+Role (LoanStaff, SavingStaff, NOT NULL, CHECK 
+s_role VARCHAR(20) 
+
+BranchManager) valid roles 
+staff_email VARCHAR(100) Staff email UNIQUE 
+
+FOREIGN KEY → 
+branch_id VARCHAR(50) Assigned branch 
+
+Branch, NOT NULL 
+Table 25.Staff  Table 
+ 
+ 
+Column Name Data Type Description Constraints 
+
+Unique identifier for PRIMARY KEY, NOT 
+admin_id VARCHAR(50) 
+
+admin NULL 
+admin_fullname VARCHAR(100) Full name of admin NOT NULL 
+admin_email VARCHAR(100) Admin email UNIQUE 
+admin_phone_number VARCHAR(20) Admin contact number  
+Table 26.Admin Table 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ Page91
+
+
+
+ 
+Endekise Microfinance|2026 
+
+Column Name Data Type Description Constraints 
+
+Unique identifier for 
+approval_id VARCHAR(50) PRIMARY KEY, NOT NULL 
+
+approval record 
+Admin performing FOREIGN KEY → Admin, 
+
+admin_id VARCHAR(50) 
+approval NOT NULL 
+Loan requiring approval FOREIGN KEY → 
+
+loan_id VARCHAR(50) 
+(nullable) LoanAccount, NULLABLE 
+
+FOREIGN KEY → Branch, 
+branch_id VARCHAR(50) Branch request (nullable) 
+
+NULLABLE 
+CHECK valid types, NOT 
+
+request_type VARCHAR(20) Type of request 
+NULL 
+
+approval_status VARCHAR(20) Status of approval DEFAULT 'Pending' 
+approval_date TIMESTAMP Date of approval/rejection  
+comments TEXT Admin comments  
+Table 27.Admin Approval Table 
+ 
+Column 
+
+Data Type Description Constraints 
+Name 
+
+Unique identifier for 
+Email_id VARCHAR(50) PRIMARY KEY, NOT NULL 
+
+SMS log 
+FOREIGN KEY → Client, NOT 
+
+client_id VARCHAR(50) Client receiving SMS 
+NULL 
+
+message TEXT email content NOT NULL 
+DEFAULT 
+
+sent_at TIMESTAMP Date and time sent 
+CURRENT_TIMESTAMP 
+
+email_status VARCHAR(20) Delivery status DEFAULT 'Sent' 
+Table 28.Email Log Table 
+ 
+ 
+ 
+Column 
+
+Data Type Description Constraints 
+Name 
+
+Unique identifier for PRIMARY KEY, NOT 
+branch_id VARCHAR(50) 
+
+branch NULL 
+br_name VARCHAR(100) Branch name NOT NULL 
+location VARCHAR(100) Branch location NOT NULL 
+Table 29.Branch Table 
+
+These entity description tables provide a complete and detailed view of the database structure 
+for the Edekise Microfinance  System, ensuring clarity for implementation and maintenance. 
+
+Relationship and Cardinality Constraint Between Entities 
+
+M : 1 = Many-to-one, 1 : M = One-to-Many, 1 : 1 = One-to-One 
+
+No. Entity 1 Relationship Cardinality Entity 2 
+
+ Page92
+
+
+
+ 
+Endekise Microfinance|2026 
+
+No. Entity 1 Relationship Cardinality Entity 2 
+
+1 Client OwnsLoan 1:M LoanAccount 
+2 Client OwnsSaving 1:M SavingsAccount 
+3 Client Receives 1:M SMSLog 
+4 LoanAccount HasSchedule 1:M PaymentSchedule 
+5 LoanAccount HasLoanTransaction 1:M Transaction 
+6 LoanAccount RequiresApproval 1:M AdminApproval 
+7 SavingsAccount HasSavingTransaction 1:M Transaction 
+8 Staff Processes 1:M Transaction 
+9 Staff AssignedTo M:1 Branch 
+10 Admin Provides 1:M AdminApproval 
+11 AdminApproval RequiresBranchApproval M:1 Branch 
+Table 30.Relationship and Cardinality Constraint Between Entities 
+ 
+ 
+
+Primary 
+Column Name Foreign Key (FK) Foreign Key (FK) 
+
+Table Name Key 
+(Primary Key) Column(s) References 
+
+(PK) 
+
+Client client_id PK None None 
+References 
+
+LoanAccount loan_id PK client_id 
+Client(client_id) 
+References 
+
+PaymentSchedule schedule_id PK loan_id 
+LoanAccount(loan_id) 
+References 
+
+SavingsAccount savings_id PK client_id 
+Client(client_id) 
+
+Transaction transaction_id PK staff_id References Staff(staff_id) 
+References 
+
+Staff staff_id PK branch_id 
+Branch(branch_id) 
+
+Admin admin_id PK None  None 
+admin_id, loan_id References 
+(NULLABLE), Admin(admin_id), 
+
+AdminApproval approval_id PK 
+branch_id LoanAccount(loan_id), 
+(NULLABLE) Branch(branch_id) 
+
+References 
+SMSLog sms_id PK client_id 
+
+Client(client_id) 
+Branch branch_id PK None None 
+Table 31.Primary Keys  and Foreign Keys 
+
+4.10. Relational Mapping 
+
+The relational mapping phase converts the conceptual Entity-Relationship (ER) model into a 
+logical relational schema. This process involves mapping entities to tables, attributes to 
+columns, primary keys to unique identifiers, and relationships to foreign keys or junction 
+tables. The mapping follows standard relational database principles to ensure the schema is 
+normalized (3NF), supports efficient queries, and enforces data integrity through constraints. 
+
+ Page93
+
+
+
+ 
+Endekise Microfinance|2026 
+
+ 
+Figure 32.Relational Mapping 
+ 
+ 
+ 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+Endekise Microfinance|2026 
+
+4.11 Normalization 
+
+Normalization is a database design technique that aims to minimize data redundancy and 
+dependency by organizing data into well-structured tables. The primary goal is to ensure data 
+integrity and eliminate anomalies during database operations such as insertion, deletion, and 
+updates. The process involves breaking down large, complex tables into smaller, more 
+manageable ones, while establishing relationships between them. 
+
+There are several normal forms that define the degree to which a database has been 
+normalized. Each normal form represents a level of organization and elimination of 
+redundancies. The commonly discussed normal forms include 1NF (First Normal Form), 2NF 
+(Second Normal Form), and 3NF (Third Normal Form). 
+
+First Normal Form (1NF) 
+
+The First Normal Form (1NF) is the foundational step in database normalization, ensuring 
+that the database is free of duplicate records and that all columns contain indivisible values. In 
+the context of the Edekise Microfinance System, achieving 1NF ensures that the data is 
+organized into structured tables with unique rows and no repeating groups. 
+
+For this project, the following constraints are applied to ensure compliance with 1NF: 
+
+ Primary Key: Each table includes a unique identifier (primary key) that ensures no 
+duplicate rows exist. 
+
+ Atomic Values: All columns in each table store atomic values, meaning each field 
+contains a single piece of information. 
+
+ Same Data Type: Each column maintains consistent data types across all rows, 
+ensuring data integrity and proper functionality. 
+
+The evaluation of each table in the system against these criteria is outlined in the table below: 
+
+Constraint 1: Primary Constraint 2: Atomic Constraint 3: Same Data 
+Table Name 
+
+Key Values Type 
+
+Client Pass Pass Pass 
+LoanAccount Pass Pass Pass 
+PaymentSchedule Pass Pass Pass 
+SavingsAccount Pass Pass Pass 
+Transaction Pass Pass Pass 
+Staff Pass Pass Pass 
+Admin Pass Pass Pass 
+AdminApproval Pass Pass Pass 
+Emailstatus Pass Pass Pass 
+Branch Pass Pass Pass 
+Table 32.Database Constraint 
+
+ 
+
+ Page95
+
+
+
+ 
+Endekise Microfinance|2026 
+
+Original Un-normalized  To illustrate, consider a hypothetical un-normalized table that 
+combines client, loan, and transaction dataNormalized Tables Split repeating groups and 
+ensure atomic values: 
+
+client_id full_name phone_number 
+C001 Abebe Kebede 0911... 
+Table 33.Client Table (1NF) 
+ 
+loan_id client_id principal_amount interest_rate 
+L001 C001 50000 12% 
+Table 34.LoanAccount Table  
+
+ 
+
+transaction_id Loan_id amount transaction_date 
+T001 L001 10000 2025-03-01 
+T002 L002 5000 2025-03-02 
+T003 L003 5000 2025-03-03 
+Table 35.Transaction Table (1NF) 
+
+ 
+
+schedule_id Loan_id installment_number due_date Amount_due Amount_paid 
+S001 L001 1 2025-02-01 5000 0 
+S002 L002 2 2025-03-01 5000 0 
+S003 L003 3 2025-04-01 5000 0 
+Table 36.PaymentSchedule Table (1NF) 
+
+ 
+
+Second Normal Form (2NF) 
+
+The Second Normal Form (2NF) is a step in database normalization that builds upon the First 
+Normal Form (1NF). To achieve 2NF, the database must meet the following conditions: 
+
+ 1NF Compliance: The table must already satisfy the criteria for 1NF, ensuring atomic 
+values and unique rows. 
+
+ Full Functional Dependency: All non-primary key attributes must be fully functionally 
+dependent on the primary key. This means there should be no partial dependency, where 
+a non-primary attribute depends only on part of a composite primary key. 
+
+Our Microfinance Expense and Loan Tracker System, the implementation of 2NF ensures that 
+data redundancy is reduced, and the structure of the database supports efficient updates and 
+queries. The evaluation of each table's compliance with 2NF is summarized below: 
+
+ 
+
+ 
+
+ 
+
+ Page96
+
+
+
+ 
+Endekise Microfinance|2026 
+
+Constraint 1: 1NF (Atomic Constraint 2: Fully Functionally 2NF 
+Table Name 
+
+Values) Dependent Status 
+
+Client Pass Pass Pass 
+LoanAccount Pass Pass Pass 
+PaymentSchedule Pass Pass Pass 
+SavingsAccount Pass Pass Pass 
+Transaction Pass Pass Pass 
+Staff Pass Pass Pass 
+Admin Pass Pass Pass 
+AdminApproval Pass Pass Pass 
+EmailLog Pass Pass Pass 
+Branch Pass Pass Pass 
+Table 37.Database Constraint For 2F 
+
+Example of  2NF Violation and Resolution Original hypothetical table with partial 
+dependency  
+
+loan_id client_id principal_amount interest_rate Client_name 
+L001 C001 50000 12% Abebe Kebede 
+L002 C002 30000 10% Adonay ybeltal 
+Table 38. 2NF Violation and Resolution 
+
+Violation: client_name depends only on client_id (part of composite key loan_id + client_id), 
+causing redundancy. 
+
+Normalized (2NF): 
+
+ Move client_name to Client table. 
+ LoanAccount references Client via client_id (FK). 
+
+Client_id Full_name 
+C001 Abebe Kebede  
+Table 39.Client Table (2NF) 
+ 
+loan_id client_id principal_amount interest_rate 
+L001 C001 50000 12% 
+L002 C002 30000 10% 
+Table 40.LoanAccount Table (2NF) 
+
+Third Normal Form (3NF) 
+
+The Third Normal Form is the next step in database normalization, focusing on the 
+elimination of transitive dependencies. For a table to be in 3NF, it must meet the following 
+criteria: 
+
+ 2NF Compliance: The table must already satisfy all conditions for 2NF. 
+ No Transitive Dependency: Non-primary key attributes must not depend on other 
+
+non-primary key attributes. In other words, every non-primary key attribute should be 
+directly dependent on the primary key only. 
+
+ Page97
+
+
+
+ 
+Endekise Microfinance|2026 
+
+The evaluation of each table's compliance with 3NF is summarized below: 
+
+Table Name Constraint 1: 2NF Constraint 2: No Transitive Dependency 3NF Status 
+
+Client Pass Pass Pass 
+LoanAccount Pass Pass Pass 
+PaymentSchedule Pass Pass Pass 
+SavingsAccount Pass Pass Pass 
+Transaction Pass Pass Pass 
+Staff Pass Pass Pass 
+Admin Pass Pass Pass 
+AdminApproval Pass Pass Pass 
+EmailLog Pass Pass Pass 
+Branch Pass Pass Pass 
+Table 41.Database Constraint For 3F 
+
+3NF Violation and Resolution Original hypothetical table with transitive dependency 
+
+Loan_id Staff_id staff_name Branch_name Principal_amount 
+L001 S001 Eliham siraj Hawassa 50000 
+L002 S002 Kidist Getu Hawassa 30000 
+Table 42. 3NF Violation and Resolution 
+
+Violation: branch_name depends on staff_id, which depends on loan_id (transitive: loan_id 
+→ staff_id → branch_name). 
+
+Normalized (3NF): 
+
+ Move branch_name to Branch table. 
+ Staff references Branch via branch_id. 
+
+Branch_id Br_name 
+B001 Hawassa 
+Table 43.Branch Table (3NF) 
+ 
+Staff_id Staff_name Branch_id 
+S001 Kidist Getu B001 
+Table 44.Staff Table (3NF) 
+ 
+Loan_id Staff_id Principal_amount 
+L001 S001 50000 
+L002 S002 30000 
+Table 45.LoanAccount Table (3NF) 
+
+ 
+
+After normalization to 3NFMicrofinance Expense and Loan Tracker System database 
+eliminates redundancy, prevents anomalies, and ensures efficient operations while 
+maintaining all required relationships for accurate financial tracking and reporting. 
+
+ Page98
+
+
+
+ 
+Endekise Microfinance|2026 
+
+CHAPTER FIVE 
+
+5.1 Conclusion 
+
+The development of the Edekise Microfinance Expense and Loan Tracker System represents 
+
+a significant milestone in the digital transformation of Yemsrach Microfinance. This project 
+
+was initiated to bridge the gap between traditional microfinance operations and the demands 
+
+of a modern, data-driven financial landscape. By systematically addressing the "dual-system 
+
+failure" of technological inadequacy and manual process overload identified in our initial 
+
+study, we have created a solution that is both context-aware and technically robust. 
+
+Throughout the development lifecycle, our primary focus remained on solving the core 
+
+operational friction points: the flawed loan calculation logic and the burden of physical 
+
+record-keeping. The implemented system successfully shifts the institution away from rigid, 
+
+error-prone monthly cycles to a flexible framework where loan schedules are accurately tied 
+
+to origination dates. This not only ensures financial transparency for the clients but also 
+
+provides the institution with an accurate reflection of its portfolio at risk, aligned with the 
+
+National Bank of Ethiopia's regulatory standards. 
+
+Moreover, the transition from a paper-heavy environment to a secure, searchable digital 
+
+repository has fundamentally changed the operational speed of the Hawassa branch. Tasks 
+
+that previously consumed hours such as historical file retrieval now occur in seconds, 
+
+allowing staff to reallocate their time toward high-value activities like client relationship 
+
+management and financial counseling. The integration of automated SMS reminders further 
+
+professionalizes the institution, reducing accidental defaults and fostering a proactive 
+
+repayment culture among clients. 
+
+Importantly, this project has pioneered the integration of inclusive design principles in local 
+
+microfinance software. By including specific modules to track and serve women and persons 
+
+with disabilities, we have ensured that Edekise is not just a tool for efficiency, but a vehicle 
+
+for social and economic empowerment.
+
+ Page99
+
+
+
+ 
+Endekise Microfinance|2026 
+
+5.2 Recommendations 
+
+The recommendations outlined below are designed to build upon the strengths of the 
+platform and guide its future growth and success. 
+To the five remaining regional branches and the Addis Ababa head office to centralize 
+audit data and consolidate reporting across the institution. 
+To enable remote bulk payments, providing clients with financial flexibility and 
+reducing physical branch traffic. 
+Using stored historical data to speed up loan approvals and mitigate default risks. 
+To maintain best data integrity during frequent internet outages. 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+
+ 
+
+ Page100
+
+
+
+ 
+Endekise Microfinance|2026 
+
+5.3 REFERENCE 
+
+ 
+Elmasri, R., & Navathe, S. B. (2016). 
+Fundamentals of Database Systems (7th ed.). 
+Creswell, J. W. (2014). 
+Research Design: Qualitative, Quantitative, and Mixed Methods Approaches (4th 
+ed.). 
+Pressman, R. S., & Maxim, B. R. (2020). 
+Software Engineering: A Practitioner's Approach (9th ed.). McGraw-Hill Education. 
+
+Yin, R. K. (2018). 
+Case Study Research and Applications: Design and Methods (6th ed.). 
+Gojo properties : Final project. 2025 
+Hwassa University Staff Evaluation System: Final project 2020 
+
+ 
+
+ 
+
+ 
+
+ Page101
