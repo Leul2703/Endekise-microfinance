@@ -131,6 +131,9 @@ function initializeDatabase() {
       id TEXT PRIMARY KEY,
       client_id INTEGER NOT NULL,
       loan_id TEXT,
+      approval_request_id TEXT,
+      related_entity_type TEXT,
+      related_entity_id TEXT,
       type TEXT NOT NULL,
       file_name TEXT NOT NULL,
       file_path TEXT NOT NULL,
@@ -205,6 +208,24 @@ function initializeDatabase() {
       reviewed_at TEXT,
       reviewed_by INTEGER,
       FOREIGN KEY (requested_by) REFERENCES users(id),
+      FOREIGN KEY (reviewed_by) REFERENCES users(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS account_unlock_requests (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      requested_user_id INTEGER NOT NULL,
+      requested_user_email TEXT,
+      requested_user_name TEXT,
+      contact TEXT,
+      status TEXT DEFAULT 'Pending',
+      reason TEXT,
+      lock_until TEXT,
+      requested_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at TEXT,
+      reviewed_by INTEGER,
+      rejection_reason TEXT,
+      FOREIGN KEY (requested_user_id) REFERENCES users(id),
       FOREIGN KEY (reviewed_by) REFERENCES users(id)
     )`);
 
@@ -557,6 +578,23 @@ function initializeDatabase() {
       }
     });
 
+    // Link documents to approval / domain entities (receipts, collateral, etc.)
+    db.run(`ALTER TABLE documents ADD COLUMN approval_request_id TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding documents.approval_request_id column:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE documents ADD COLUMN related_entity_type TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding documents.related_entity_type column:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE documents ADD COLUMN related_entity_id TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding documents.related_entity_id column:', err.message);
+      }
+    });
+
     db.run(`ALTER TABLE payment_schedule ADD COLUMN principal_paid REAL DEFAULT 0`, (err) => {
       if (err && !err.message.includes('duplicate column name')) {
         console.error('Error adding payment_schedule.principal_paid column:', err.message);
@@ -638,6 +676,9 @@ function initializeDatabase() {
     db.run('CREATE INDEX IF NOT EXISTS idx_audit_trail_timestamp ON audit_trail(timestamp)');
     db.run('CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status)');
     db.run('CREATE INDEX IF NOT EXISTS idx_approval_requests_type ON approval_requests(type)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_account_unlock_requests_status ON account_unlock_requests(status)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_account_unlock_requests_username ON account_unlock_requests(username)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_account_unlock_requests_requested_at ON account_unlock_requests(requested_at)');
     db.run('CREATE INDEX IF NOT EXISTS idx_documents_client ON documents(client_id)');
     db.run('CREATE INDEX IF NOT EXISTS idx_documents_loan ON documents(loan_id)');
     db.run('CREATE INDEX IF NOT EXISTS idx_update_requests_client ON update_requests(client_id)');

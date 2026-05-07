@@ -106,12 +106,12 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Upload document (UC-L-002)
-router.post('/upload', authenticateToken, authorizeRoles('loan_staff', 'saving_staff', 'client'), upload.single('file'), async (req, res) => {
+router.post('/upload', authenticateToken, authorizeRoles('loan_staff', 'saving_staff', 'client', 'admin', 'branch_manager', 'ceo'), upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  const { client_id, loan_id, type } = req.body;
+  const { client_id, loan_id, type, approval_request_id, related_entity_type, related_entity_id } = req.body;
   const userId = req.user.id;
 
   let effectiveClientId = client_id;
@@ -169,8 +169,21 @@ router.post('/upload', authenticateToken, authorizeRoles('loan_staff', 'saving_s
     const version = 1;
     
     db.run(
-      'INSERT INTO documents (id, client_id, loan_id, type, file_name, file_path, status, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [docId, effectiveClientId, loan_id, type, req.file.filename, req.file.path, 'Verified', version],
+      `INSERT INTO documents (id, client_id, loan_id, approval_request_id, related_entity_type, related_entity_id, type, file_name, file_path, status, version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        docId,
+        effectiveClientId,
+        loan_id || null,
+        approval_request_id || null,
+        related_entity_type || null,
+        related_entity_id || null,
+        type,
+        req.file.filename,
+        req.file.path,
+        'Verified',
+        version
+      ],
       function(err) {
         if (err) {
           console.error('Database error:', err);
@@ -198,6 +211,9 @@ router.post('/upload', authenticateToken, authorizeRoles('loan_staff', 'saving_s
             document_type: type,
             client_id: effectiveClientId,
             loan_id: loan_id,
+            approval_request_id: approval_request_id || null,
+            related_entity_type: related_entity_type || null,
+            related_entity_id: related_entity_id || null,
             file_size: req.file.size,
             version: version
           }), new Date().toISOString()],
@@ -217,6 +233,43 @@ router.post('/upload', authenticateToken, authorizeRoles('loan_staff', 'saving_s
         });
       }
     );
+  }
+});
+
+// Get documents by approval request (receipt/proof linkage)
+router.get('/approval/:approvalRequestId', authenticateToken, authorizeRoles('admin', 'branch_manager', 'ceo', 'saving_staff', 'loan_staff', 'client'), async (req, res) => {
+  const { approvalRequestId } = req.params;
+  const normalized = String(approvalRequestId || '').trim();
+  if (!normalized) {
+    return res.status(400).json({ error: 'Approval request id is required' });
+  }
+
+  try {
+    // For client role, return only documents belonging to the client.
+    let effectiveClientId = null;
+    if (req.user.role === 'client') {
+      const client = await resolveClientProfileByUser(req.user);
+      if (!client) {
+        return res.json([]);
+      }
+      effectiveClientId = client.id;
+    }
+
+    const where = effectiveClientId
+      ? 'WHERE approval_request_id = ? AND client_id = ?'
+      : 'WHERE approval_request_id = ?';
+    const params = effectiveClientId ? [normalized, effectiveClientId] : [normalized];
+
+    db.all(`SELECT * FROM documents ${where} ORDER BY uploaded_at DESC`, params, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      return res.json(rows || []);
+    });
+  } catch (error) {
+    console.error('Approval documents error:', error);
+    return res.status(500).json({ error: 'Database error' });
   }
 });
 

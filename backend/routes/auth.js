@@ -6,7 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { db } = require('../config/database');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { sendEmail } = require('../utils/emailService');
 const { auditLogger } = require('../middleware/auditLogger');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 const { buildCompanyId } = require('../utils/companyId');
@@ -797,16 +798,8 @@ router.post('/client-register', publicKycUpload.fields([
       );
     });
 
-      // Create an approval request for admin review so approvers are notified
-      try {
-        const { createApprovalRequest } = require('./approvals');
-        // details include client registration info to help approvers
-        const details = { client_id: createdClientId, email: email || null, full_name };
-        // requestedBy is null for public registrations
-        await createApprovalRequest('client_registration', createdClientId, 0, null, details);
-      } catch (e) {
-        console.warn('Failed to create approval request for registration:', e && e.message);
-      }
+      // Note: registration review is driven by `client_registration_requests` queue (admin page).
+      // We intentionally do not create a separate approval_request here to avoid schema coupling.
 
       return res.status(201).json({
         message: 'Registration submitted successfully. An admin will review your application.',
@@ -863,27 +856,389 @@ router.get('/verify', (req, res) => {
 });
 
 // Unlock account endpoint (admin only)
-router.post('/unlock/:username', async (req, res) => {
+router.post('/unlock/:username', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   const { username } = req.params;
+  const adminId = req.user.id;
+  const adminUsername = req.user.username;
 
-  db.run(
-    'UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?',
-    [username],
-    function(err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      console.log(`[AUDIT] Account unlocked for ${username} at ${new Date().toISOString()}`);
-      
-      res.json({ message: 'Account unlocked successfully' });
+  const requestedUsername = String(username || '').trim();
+  if (!requestedUsername) {
+    return res.status(400).json({ error: 'Username is required' });
+  }
+
+  try {
+    const unlockedResult = await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?',
+        [requestedUsername],
+        function unlockCb(err) {
+          if (err) return reject(err);
+          resolve({ changes: this.changes || 0 });
+        }
+      );
+    });
+
+    if (unlockedResult.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  );
+
+    // Mark the latest pending unlock request (if any) as approved.
+    const pendingRequest = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT id, requested_user_email FROM account_unlock_requests WHERE username = ? AND status = ? ORDER BY requested_at DESC LIMIT 1',
+        [requestedUsername, 'Pending'],
+        (err, row) => (err ? reject(err) : resolve(row || null))
+      );
+    });
+
+    const nowIso = new Date().toISOString();
+    if (pendingRequest?.id) {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE account_unlock_requests SET status = ?, reviewed_at = ?, reviewed_by = ?, rejection_reason = NULL WHERE id = ?',
+          ['Approved', nowIso, adminId, pendingRequest.id],
+          (err) => (err ? reject(err) : resolve())
+        );
+      });
+
+      // Best-effort completion email to the requester.
+      if (pendingRequest.requested_user_email) {
+        const subject = `Account Unlocked - ${requestedUsername}`;
+        const text = `Hello,\n\nYour account (${requestedUsername}) has been unlocked by an administrator at ${nowIso}.\n\nIf this was not intended, please contact support.\n`;
+        await sendEmail(pendingRequest.requested_user_email, subject, text);
+      }
+    }
+
+    // Audit event
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO audit_trail (action, entity_type, entity_id, user_id, user_role, details, timestamp, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'ACCOUNT_UNLOCKED',
+          'user',
+          requestedUsername,
+          adminId,
+          'admin',
+          JSON.stringify({ username: requestedUsername }),
+          nowIso,
+          'Success'
+        ],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    console.log(`[AUDIT] Account unlocked for ${requestedUsername} by ${adminUsername} at ${nowIso}`);
+    res.json({ message: 'Account unlocked successfully' });
+  } catch (error) {
+    console.error('Account unlock error:', error);
+    res.status(500).json({ error: 'Failed to unlock account' });
+  }
+});
+
+// Account unlock request endpoint (for locked users)
+router.post('/unlock-request', async (req, res) => {
+  const { username, contact, reason } = req.body || {};
+  const normalizedUsername = String(username || '').trim();
+  const normalizedContact = contact ? String(contact).trim() : null;
+  const normalizedReason = reason ? String(reason).trim() : null;
+
+  if (!normalizedUsername) {
+    return res.status(400).json({ error: 'Username is required to request account unlock.' });
+  }
+
+  try {
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT id, username, name, email, locked_until FROM users WHERE username = ?', [normalizedUsername], (err, row) => {
+        if (err) reject(err);
+        else resolve(row || null);
+      });
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (!user.locked_until) {
+      return res.status(400).json({ error: 'Account is not locked. Unlock request is not required.' });
+    }
+
+    // Idempotency: prevent spamming multiple pending requests for the same username.
+    const existingPending = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT id FROM account_unlock_requests WHERE username = ? AND status = ? ORDER BY requested_at DESC LIMIT 1',
+        [normalizedUsername, 'Pending'],
+        (err, row) => (err ? reject(err) : resolve(row || null))
+      );
+    });
+
+    if (existingPending?.id) {
+      return res.json({
+        message: 'Unlock request already submitted. Admin will review it shortly.',
+        request_id: existingPending.id
+      });
+    }
+
+    const unlockRequestId = `UR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const nowIso = new Date().toISOString();
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO account_unlock_requests
+          (id, username, requested_user_id, requested_user_email, requested_user_name, contact, status, reason, lock_until, requested_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          unlockRequestId,
+          user.username,
+          user.id,
+          user.email || null,
+          user.name || null,
+          normalizedContact,
+          'Pending',
+          normalizedReason,
+          user.locked_until,
+          nowIso
+        ],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    db.all(
+      "SELECT email, username FROM users WHERE role = 'admin' AND email IS NOT NULL",
+      [],
+      async (emailErr, admins) => {
+        if (emailErr || !Array.isArray(admins)) return;
+        const subject = `Account Unlock Request: ${user.username}`;
+        const body = `User ${user.username} (${user.name || 'N/A'}) requested account unlock.\nLocked until: ${user.locked_until || 'N/A'}\nContact: ${normalizedContact || user.email || 'N/A'}\nRequest ID: ${unlockRequestId}`;
+        for (const admin of admins) {
+          try {
+            await sendEmail(admin.email, subject, body);
+          } catch (sendErr) {
+            console.warn('Failed to notify admin for unlock request:', sendErr?.message || sendErr);
+          }
+        }
+      }
+    );
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO audit_trail (action, entity_type, entity_id, user_id, user_role, details, timestamp, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'ACCOUNT_UNLOCK_REQUESTED',
+          'user',
+          unlockRequestId,
+          user.id,
+          'user',
+          JSON.stringify({
+            username: user.username,
+            contact: normalizedContact,
+            request_id: unlockRequestId
+          }),
+          nowIso,
+          'Success'
+        ],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    return res.json({
+      message: 'Unlock request submitted successfully. Admin will review and unlock your account.',
+      request_id: unlockRequestId
+    });
+  } catch (error) {
+    console.error('Unlock request error:', error);
+    return res.status(500).json({ error: 'Failed to submit unlock request.' });
+  }
+});
+
+// Admin: list pending unlock requests
+router.get('/unlock-requests/pending', authenticateToken, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const pending = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT
+          id,
+          username,
+          requested_user_email,
+          requested_user_name,
+          contact,
+          reason,
+          lock_until,
+          status,
+          requested_at,
+          reviewed_at,
+          reviewed_by,
+          rejection_reason
+        FROM account_unlock_requests
+        WHERE status = 'Pending'
+        ORDER BY requested_at DESC`,
+        [],
+        (err, rows) => (err ? reject(err) : resolve(rows || []))
+      );
+    });
+
+    res.json({ count: pending.length, requests: pending });
+  } catch (error) {
+    console.error('Pending unlock request fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch pending unlock requests' });
+  }
+});
+
+// Admin: approve unlock request
+router.post('/unlock-requests/:id/approve', authenticateToken, authorizeRoles('admin'), async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.user.id;
+  const adminUsername = req.user.username;
+
+  const requestId = String(id || '').trim();
+  if (!requestId) {
+    return res.status(400).json({ error: 'Request id is required' });
+  }
+
+  try {
+    const request = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM account_unlock_requests WHERE id = ?`,
+        [requestId],
+        (err, row) => (err ? reject(err) : resolve(row || null))
+      );
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Unlock request not found' });
+    }
+
+    if (request.status !== 'Pending') {
+      return res.status(409).json({ error: `Unlock request is not pending (status: ${request.status})` });
+    }
+
+    const nowIso = new Date().toISOString();
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE account_unlock_requests
+         SET status = ?, reviewed_at = ?, reviewed_by = ?, rejection_reason = NULL
+         WHERE id = ?`,
+        ['Approved', nowIso, adminId, requestId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    // Unlock account
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?',
+        [request.username],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    // Completion email (best-effort)
+    if (request.requested_user_email) {
+      const subject = `Account Unlocked - ${request.username}`;
+      const text = `Hello,\n\nYour account (${request.username}) has been unlocked by an administrator at ${nowIso}.\n\nIf this was not intended, please contact support.\n`;
+      await sendEmail(request.requested_user_email, subject, text);
+    }
+
+    // Audit event
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO audit_trail (action, entity_type, entity_id, user_id, user_role, details, timestamp, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'ACCOUNT_UNLOCK_APPROVED',
+          'account_unlock_request',
+          requestId,
+          adminId,
+          'admin',
+          JSON.stringify({ request_id: requestId, username: request.username, approved_by: adminUsername }),
+          nowIso,
+          'Success'
+        ],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    res.json({ message: 'Unlock request approved and account unlocked' });
+  } catch (error) {
+    console.error('Unlock approval error:', error);
+    res.status(500).json({ error: 'Failed to approve unlock request' });
+  }
+});
+
+// Admin: reject unlock request
+router.post('/unlock-requests/:id/reject', authenticateToken, authorizeRoles('admin'), async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.user.id;
+  const adminUsername = req.user.username;
+  const { reason } = req.body || {};
+
+  const requestId = String(id || '').trim();
+  const normalizedReason = reason ? String(reason).trim() : null;
+
+  if (!requestId) {
+    return res.status(400).json({ error: 'Request id is required' });
+  }
+
+  try {
+    const request = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM account_unlock_requests WHERE id = ?`,
+        [requestId],
+        (err, row) => (err ? reject(err) : resolve(row || null))
+      );
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Unlock request not found' });
+    }
+
+    if (request.status !== 'Pending') {
+      return res.status(409).json({ error: `Unlock request is not pending (status: ${request.status})` });
+    }
+
+    const nowIso = new Date().toISOString();
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE account_unlock_requests
+         SET status = ?, reviewed_at = ?, reviewed_by = ?, rejection_reason = ?
+         WHERE id = ?`,
+        ['Rejected', nowIso, adminId, normalizedReason, requestId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    if (request.requested_user_email) {
+      const subject = `Account Unlock Request Rejected - ${request.username}`;
+      const text = `Hello,\n\nWe reviewed your account unlock request (${request.username}). Unfortunately, it was rejected.\n\nReason: ${normalizedReason || 'Not provided'}\n\nYou may contact support if you have questions.\n`;
+      await sendEmail(request.requested_user_email, subject, text);
+    }
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO audit_trail (action, entity_type, entity_id, user_id, user_role, details, timestamp, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'ACCOUNT_UNLOCK_REJECTED',
+          'account_unlock_request',
+          requestId,
+          adminId,
+          'admin',
+          JSON.stringify({ request_id: requestId, username: request.username, rejected_by: adminUsername, rejection_reason: normalizedReason }),
+          nowIso,
+          'Success'
+        ],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    res.json({ message: 'Unlock request rejected' });
+  } catch (error) {
+    console.error('Unlock rejection error:', error);
+    res.status(500).json({ error: 'Failed to reject unlock request' });
+  }
 });
 
 // Reset seed users endpoint (development only - removes all users and re-seeds)

@@ -126,6 +126,20 @@ export const api = {
   logout: () => fetchWithAuth('/auth/logout', {
     method: 'POST'
   }),
+  requestAccountUnlock: (payload) => fetchWithAuth('/auth/unlock-request', {
+    method: 'POST',
+    body: JSON.stringify(payload || {})
+  }),
+
+  // Admin unlock requests
+  getPendingUnlockRequests: () => fetchWithAuth('/auth/unlock-requests/pending'),
+  approveUnlockRequest: (requestId) => fetchWithAuth(`/auth/unlock-requests/${requestId}/approve`, {
+    method: 'POST'
+  }),
+  rejectUnlockRequest: (requestId, reason) => fetchWithAuth(`/auth/unlock-requests/${requestId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason ?? null })
+  }),
   changeClientPassword: (currentPassword, newPassword, confirmPassword) => fetchWithAuth('/auth/change-password', {
     method: 'POST',
     body: JSON.stringify({
@@ -366,6 +380,7 @@ export const api = {
   getCEOPendingApprovals: () => fetchWithAuth('/ceo/approvals/pending'),
   getPendingApprovals: () => fetchWithAuth('/approvals/pending'),
   getApprovalThresholds: () => fetchWithAuth('/approvals/thresholds'),
+  getApprovalHistory: (types) => fetchWithAuth(`/approvals/history${types ? `?type=${encodeURIComponent(types)}` : ''}`),
   approveApprovalRequest: (id, justification) => fetchWithAuth(`/approvals/${id}/approve`, {
     method: 'POST',
     body: JSON.stringify({ justification })
@@ -425,6 +440,9 @@ export const api = {
 
   // Documents
   getDocuments: () => fetchWithAuth('/documents'),
+  getDocumentsByApprovalRequest: (approvalRequestId) => fetchWithAuth(`/documents/approval/${approvalRequestId}`),
+  getDocumentsByLoan: (loanId) => fetchWithAuth(`/documents/loan/${loanId}`),
+  downloadDocument: (documentId) => fetchBlobWithAuth(`/documents/${documentId}/download`),
   uploadDocument: (formData) => {
     const token = getAuthToken();
     return fetch(`${API_BASE_URL}/documents/upload`, {
@@ -506,6 +524,10 @@ export const api = {
   deposit: (accountId, amount, description) => fetchWithAuth('/transactions/deposit', {
     method: 'POST',
     body: JSON.stringify({ account_id: accountId, amount, description })
+  }),
+  submitClientDepositRequest: (payload) => fetchWithAuth('/transactions/deposit-request', {
+    method: 'POST',
+    body: JSON.stringify(payload || {})
   }),
   withdraw: (accountId, amount, description) => fetchWithAuth('/transactions/withdraw', {
     method: 'POST',

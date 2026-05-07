@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Eye, Search, Filter, AlertTriangle, ArrowUp } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Search, Filter, AlertTriangle, ArrowUp, FileText, Download } from 'lucide-react';
 import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
@@ -17,6 +17,9 @@ const LoanApprovals = () => {
   const [pendingLoans, setPendingLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [loanDocuments, setLoanDocuments] = useState([]);
 
   useEffect(() => {
     fetchPendingLoans();
@@ -81,6 +84,36 @@ const LoanApprovals = () => {
   const handleViewDetails = (loan) => {
     setSelectedLoan(loan);
     setShowDetailsModal(true);
+  };
+
+  const handleViewDocuments = (loan) => {
+    setSelectedLoan(loan);
+    setShowDocumentsModal(true);
+    setDocumentsLoading(true);
+    setLoanDocuments([]);
+    api.getDocumentsByLoan(loan.id)
+      .then((docs) => setLoanDocuments(Array.isArray(docs) ? docs : []))
+      .catch((err) => warning(err?.message || 'Failed to load documents'))
+      .finally(() => setDocumentsLoading(false));
+  };
+
+  const handleDownloadDocument = async (doc) => {
+    if (!doc?.id) return;
+    try {
+      const { blob, contentDisposition } = await api.downloadDocument(doc.id);
+      const match = /filename="([^"]+)"/i.exec(contentDisposition || '');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = match?.[1] || doc.file_name || `document_${doc.id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      success('Document downloaded');
+    } catch (err) {
+      error(err.message || 'Failed to download document');
+    }
   };
 
   const confirmReject = async () => {
@@ -185,6 +218,9 @@ const LoanApprovals = () => {
                   <td>
                     <button className="btn-icon edit" title="View Details" onClick={() => handleViewDetails(loan)}>
                       <Eye size={18} />
+                    </button>
+                    <button className="btn-icon edit" title="View Documents" onClick={() => handleViewDocuments(loan)}>
+                      <FileText size={18} />
                     </button>
                     <button className="btn-icon edit" title="Approve" onClick={() => handleApprove(loan)}>
                       <CheckCircle size={18} />
@@ -316,6 +352,51 @@ const LoanApprovals = () => {
                 }}>
                   <CheckCircle size={18} />
                   Approve Loan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDocumentsModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '650px' }}>
+            <div className="modal-header">
+              <h2>Loan Documents</h2>
+              <button onClick={() => setShowDocumentsModal(false)} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <p><strong>Loan ID:</strong> {selectedLoan?.id}</p>
+              <p><strong>Client:</strong> {selectedLoan?.client}</p>
+
+              {documentsLoading ? (
+                <div style={{ padding: '1rem', color: '#6b7280' }}>Loading documents...</div>
+              ) : loanDocuments.length === 0 ? (
+                <div style={{ padding: '1rem', color: '#6b7280' }}>No documents attached yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                  {loanDocuments.map((doc) => (
+                    <div key={doc.id} className="info-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <strong>{doc.type || 'Document'}</strong>
+                        <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>{doc.file_name}</span>
+                        <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>
+                          Uploaded: {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}
+                        </span>
+                      </div>
+                      <button className="btn-secondary" onClick={() => handleDownloadDocument(doc)}>
+                        <Download size={18} />
+                        Download
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setShowDocumentsModal(false)}>
+                  Close
                 </button>
               </div>
             </div>

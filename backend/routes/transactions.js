@@ -290,6 +290,89 @@ router.post('/deposit', authenticateToken, authorizeRoles('admin', 'branch_manag
   }
 });
 
+// Client: submit deposit request with receipt proof (maker-checker)
+router.post('/deposit-request', authenticateToken, authorizeRoles('client'), async (req, res) => {
+  const { account_id, amount, description, receipt_document_id } = req.body || {};
+  const numericAmount = parseFloat(amount);
+
+  if (!account_id || Number.isNaN(numericAmount) || numericAmount <= 0) {
+    return res.status(400).json({ error: 'Valid account ID and positive amount are required' });
+  }
+
+  if (!receipt_document_id) {
+    return res.status(400).json({ error: 'Receipt document id is required' });
+  }
+
+  try {
+    await ensureUserCanTransact(req, account_id);
+
+    const client = await resolveClientProfileByUser(req.user);
+    if (!client) {
+      return res.status(404).json({ error: 'Client profile not found' });
+    }
+
+    const account = await runGet('SELECT * FROM savings_accounts WHERE id = ?', [account_id]);
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    if (Number(account.client_id) !== Number(client.id)) {
+      return res.status(403).json({ error: 'You can only submit deposits for your own savings account.' });
+    }
+
+    if (account.status !== 'Active') {
+      return res.status(400).json({ error: 'The selected savings account is inactive or invalid.' });
+    }
+
+    const receiptDoc = await runGet('SELECT * FROM documents WHERE id = ?', [receipt_document_id]);
+    if (!receiptDoc) {
+      return res.status(404).json({ error: 'Receipt document not found' });
+    }
+
+    if (Number(receiptDoc.client_id) !== Number(client.id)) {
+      return res.status(403).json({ error: 'Receipt document does not belong to this client.' });
+    }
+
+    // Always go through approval for client-initiated deposits.
+    const approvalRequestId = await createApprovalRequest('transaction_deposit', account_id, numericAmount, req.user.id, {
+      accountId: account_id,
+      amount: numericAmount,
+      description: description || 'Client deposit (receipt submitted)',
+      client_id: client.id,
+      client_name: client.name,
+      receipt_document_id,
+      requires_receipt_proof: true,
+      related_entity_type: 'savings_account',
+      related_entity_id: account_id
+    });
+
+    await withTransaction(async () => {
+      // Link the uploaded receipt to this approval request for reviewer UX
+      await runExec(
+        'UPDATE documents SET approval_request_id = ?, related_entity_type = ?, related_entity_id = ? WHERE id = ?',
+        [approvalRequestId, 'savings_account', account_id, receipt_document_id]
+      );
+    });
+
+    await recordAuditEvent({
+      action: 'CLIENT_DEPOSIT_SUBMITTED_FOR_APPROVAL',
+      entityType: 'approval_request',
+      entityId: approvalRequestId,
+      user: req.user,
+      details: { account_id, amount: numericAmount, receipt_document_id }
+    });
+
+    return res.status(202).json({
+      message: 'Deposit request submitted for approval',
+      approval_request_id: approvalRequestId,
+      status: 'Pending Approval'
+    });
+  } catch (error) {
+    console.error('Client deposit request error:', error);
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 router.post('/withdraw', authenticateToken, authorizeRoles('admin', 'branch_manager', 'saving_staff', 'client'), async (req, res) => {
   const { account_id, amount, description } = req.body;
   const numericAmount = parseFloat(amount);

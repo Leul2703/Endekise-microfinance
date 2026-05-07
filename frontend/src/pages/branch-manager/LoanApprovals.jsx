@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CheckCircle, XCircle, Eye, Search, Filter, FileText, AlertTriangle, ArrowUp } from 'lucide-react';
 import '../admin/AdminPages.css';
 import api from '../../utils/api';
@@ -26,9 +26,15 @@ const LoanApprovals = () => {
   const [escalationReason, setEscalationReason] = useState('');
   const [pendingLoans, setPendingLoans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historySummary, setHistorySummary] = useState({ approved: 0, rejected: 0, total: 0 });
+  const [creditLimit, setCreditLimit] = useState(100000);
+  const [loanDocuments, setLoanDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   useEffect(() => {
     fetchPendingLoans();
+    fetchLoanHistorySummary();
+    fetchThresholds();
   }, []);
 
   const fetchPendingLoans = async () => {
@@ -41,6 +47,27 @@ const LoanApprovals = () => {
       warning(error?.message || 'Failed to load pending loan approvals');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLoanHistorySummary = async () => {
+    try {
+      const data = await api.getApprovalHistory('loan_origination');
+      const loanSummary = data?.summary?.loan_origination || { approved: 0, rejected: 0, total: 0 };
+      setHistorySummary(loanSummary);
+    } catch (historyErr) {
+      console.error('Error fetching loan approval history summary:', historyErr);
+    }
+  };
+
+  const fetchThresholds = async () => {
+    try {
+      const thresholdData = await api.getApprovalThresholds();
+      if (Number.isFinite(Number(thresholdData?.branch_manager))) {
+        setCreditLimit(Number(thresholdData.branch_manager));
+      }
+    } catch (thresholdErr) {
+      console.error('Error loading approval thresholds:', thresholdErr);
     }
   };
 
@@ -96,10 +123,31 @@ const LoanApprovals = () => {
   const handleViewDocuments = (loan) => {
     setSelectedLoan(loan);
     setShowDocumentsModal(true);
+    setLoanDocuments([]);
+    setDocumentsLoading(true);
+    api.getDocumentsByLoan(loan.id)
+      .then((docs) => setLoanDocuments(Array.isArray(docs) ? docs : []))
+      .catch((err) => warning(err?.message || 'Failed to load loan documents'))
+      .finally(() => setDocumentsLoading(false));
   };
 
-  const handleDownloadDocument = (docName) => {
-    warning(`Download for "${docName}" is not linked yet. Please use the central documents page.`);
+  const handleDownloadDocument = async (doc) => {
+    if (!doc?.id) return;
+    try {
+      const { blob, contentDisposition } = await api.downloadDocument(doc.id);
+      const match = /filename="([^"]+)"/i.exec(contentDisposition || '');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = match?.[1] || doc.file_name || `document_${doc.id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      success('Document downloaded');
+    } catch (err) {
+      error(err.message || 'Failed to download document');
+    }
   };
 
   const confirmReject = async () => {
@@ -149,12 +197,22 @@ const LoanApprovals = () => {
   };
 
   const isOver100K = (loan) => getAmountValue(loan.amount) > 100000;
+  const pendingExposure = useMemo(
+    () => filteredLoans.reduce((sum, loan) => sum + getAmountValue(loan.amount), 0),
+    [filteredLoans]
+  );
 
   return (
     <div className="admin-page">
       <div className="page-header">
         <h1>Loan Approvals</h1>
         <p>Review and approve loan applications. Loans over 100K ETB require CEO approval.</p>
+      </div>
+      <div className="stats-grid">
+        <div className="stat-card"><div className="stat-content"><h3>{creditLimit.toLocaleString()} ETB</h3><p>Branch Credit Limit</p></div></div>
+        <div className="stat-card"><div className="stat-content"><h3>{pendingExposure.toLocaleString()} ETB</h3><p>Pending Loan Exposure</p></div></div>
+        <div className="stat-card"><div className="stat-content"><h3>{historySummary.approved}</h3><p>Approved (History)</p></div></div>
+        <div className="stat-card"><div className="stat-content"><h3>{historySummary.rejected}</h3><p>Rejected (History)</p></div></div>
       </div>
 
       <div className="page-actions">
@@ -428,46 +486,22 @@ const LoanApprovals = () => {
               <div className="form-group">
                 <label>Attached Documents</label>
                 <div className="documents-list">
-                  <div className="document-item">
-                    <FileText size={20} />
-                    <div>
-                      <p className="document-name">Application Form</p>
-                      <p className="document-meta">PDF • 245 KB • Uploaded 2026-04-18</p>
+                  {documentsLoading ? (
+                    <div style={{ padding: '1rem', color: '#6b7280' }}>Loading documents...</div>
+                  ) : loanDocuments.length === 0 ? (
+                    <div style={{ padding: '1rem', color: '#6b7280' }}>No documents attached yet.</div>
+                  ) : loanDocuments.map((doc) => (
+                    <div className="document-item" key={doc.id}>
+                      <FileText size={20} />
+                      <div>
+                        <p className="document-name">{doc.type || 'Document'}</p>
+                        <p className="document-meta">{doc.file_name} • Uploaded {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</p>
+                      </div>
+                      <button className="btn-sm secondary" onClick={() => handleDownloadDocument(doc)}>
+                        Download
+                      </button>
                     </div>
-                    <button className="btn-sm secondary" onClick={() => handleDownloadDocument('Application Form')}>
-                      Download
-                    </button>
-                  </div>
-                  <div className="document-item">
-                    <FileText size={20} />
-                    <div>
-                      <p className="document-name">ID Verification</p>
-                      <p className="document-meta">PDF • 1.2 MB • Uploaded 2026-04-18</p>
-                    </div>
-                    <button className="btn-sm secondary" onClick={() => handleDownloadDocument('ID Verification')}>
-                      Download
-                    </button>
-                  </div>
-                  <div className="document-item">
-                    <FileText size={20} />
-                    <div>
-                      <p className="document-name">Income Statement</p>
-                      <p className="document-meta">PDF • 890 KB • Uploaded 2026-04-18</p>
-                    </div>
-                    <button className="btn-sm secondary" onClick={() => handleDownloadDocument('Income Statement')}>
-                      Download
-                    </button>
-                  </div>
-                  <div className="document-item">
-                    <FileText size={20} />
-                    <div>
-                      <p className="document-name">Collateral Documents</p>
-                      <p className="document-meta">PDF • 2.5 MB • Uploaded 2026-04-18</p>
-                    </div>
-                    <button className="btn-sm secondary" onClick={() => handleDownloadDocument('Collateral Documents')}>
-                      Download
-                    </button>
-                  </div>
+                  ))}
                 </div>
               </div>
               <div className="modal-actions">

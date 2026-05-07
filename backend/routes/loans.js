@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { db } = require('../config/database');
 const { createApprovalRequest } = require('./approvals');
+const { withTransaction } = require('../utils/transactionWrapper');
 const {
   HIGH_VALUE_THRESHOLD,
   activateLoanAccount,
@@ -260,62 +261,64 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
-    await runExec(
-      `INSERT INTO loan_accounts (id, client_id, savings_account_id, amount, balance, type, term, interest_rate, payment_frequency, status, disbursement_date, purpose)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        loanId,
-        client_id,
-        savings_account_id,
-        loanAmount,
-        loanAmount,
-        normalizedType,
-        String(parsedTerm),
-        parsedInterestRate,
-        paymentFrequency || 'Monthly',
-        initialStatus,
-        createdByAdmin ? (originationDate || new Date().toISOString().split('T')[0]) : null,
-        purpose || null
-      ]
-    );
-
-    // Add guarantors if provided
-    if (guarantors && Array.isArray(guarantors) && guarantors.length > 0) {
-      for (const guarantor of guarantors) {
-        await new Promise((resolve, reject) => {
-          db.run(
-            'INSERT INTO loan_guarantors (loan_id, guarantor_id, guarantee_amount, status) VALUES (?, ?, ?, ?)',
-            [loanId, guarantor.id, guarantor.amount || null, 'Active'],
-            function(err) {
-              if (err) reject(err);
-              else resolve();
-            }
-          );
-        });
-      }
-    }
-
     let approvalRequestId = null;
-    if (!createdByAdmin) {
-      approvalRequestId = await createApprovalRequest(
-        'loan_origination',
-        loanId,
-        loanAmount,
-        userId,
-        {
+    await withTransaction(async () => {
+      await runExec(
+        `INSERT INTO loan_accounts (id, client_id, savings_account_id, amount, balance, type, term, interest_rate, payment_frequency, status, disbursement_date, purpose)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          loanId,
           client_id,
-          client_name: clientName || client.name,
           savings_account_id,
-          principal: loanAmount,
-          interest_rate: parsedInterestRate,
-          term_months: parsedTerm,
-          payment_frequency: paymentFrequency || 'Monthly',
-          origination_date: originationDate || new Date().toISOString().split('T')[0],
-          purpose,
-          guarantors
-        }
+          loanAmount,
+          loanAmount,
+          normalizedType,
+          String(parsedTerm),
+          parsedInterestRate,
+          paymentFrequency || 'Monthly',
+          initialStatus,
+          createdByAdmin ? (originationDate || new Date().toISOString().split('T')[0]) : null,
+          purpose || null
+        ]
       );
-    }
+
+      // Add guarantors if provided
+      if (guarantors && Array.isArray(guarantors) && guarantors.length > 0) {
+        for (const guarantor of guarantors) {
+          await new Promise((resolve, reject) => {
+            db.run(
+              'INSERT INTO loan_guarantors (loan_id, guarantor_id, guarantee_amount, status) VALUES (?, ?, ?, ?)',
+              [loanId, guarantor.id, guarantor.amount || null, 'Active'],
+              function(err) {
+                if (err) reject(err);
+                else resolve();
+              }
+            );
+          });
+        }
+      }
+
+      if (!createdByAdmin) {
+        approvalRequestId = await createApprovalRequest(
+          'loan_origination',
+          loanId,
+          loanAmount,
+          userId,
+          {
+            client_id,
+            client_name: clientName || client.name,
+            savings_account_id,
+            principal: loanAmount,
+            interest_rate: parsedInterestRate,
+            term_months: parsedTerm,
+            payment_frequency: paymentFrequency || 'Monthly',
+            origination_date: originationDate || new Date().toISOString().split('T')[0],
+            purpose,
+            guarantors
+          }
+        );
+      }
+    });
 
     let activationResult = null;
     if (createdByAdmin) {

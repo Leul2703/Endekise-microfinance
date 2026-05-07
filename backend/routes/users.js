@@ -218,8 +218,15 @@ router.put('/:id', authenticateToken, authorizeRoles('admin'), (req, res) => {
     [full_name || name || username, username, email || null, role, status, branch_id || null, phone || null, id],
     function(err) {
       if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Database error updating user:', err);
+        const msg = (err && err.message) ? String(err.message) : 'Database error';
+        if (msg.toLowerCase().includes('unique') || msg.toLowerCase().includes('constraint')) {
+          return res.status(409).json({ error: 'Conflict', details: msg });
+        }
+        if (msg.toLowerCase().includes('foreign key') || msg.toLowerCase().includes('foreign')) {
+          return res.status(400).json({ error: 'Invalid reference', details: msg });
+        }
+        return res.status(500).json({ error: 'Database error', details: msg });
       }
 
       console.log(`[UPDATE USER] Updated ${this.changes} row(s)`);

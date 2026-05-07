@@ -21,6 +21,7 @@ import Settings from './pages/admin/Settings';
 import Logs from './pages/admin/Logs';
 import UserManagement from './pages/admin/UserManagement';
 import Clients from './pages/admin/Clients';
+import UnlockRequests from './pages/admin/UnlockRequests';
 
 // Branch Manager pages
 import LoanApprovals from './pages/branch-manager/LoanApprovals';
@@ -72,6 +73,7 @@ function App() {
               <Route path="accounts" element={<Accounts />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="clients" element={<Clients />} />
+              <Route path="unlock-requests" element={<UnlockRequests />} />
               <Route path="logs" element={<Logs />} />
               <Route path="settings" element={<Settings />} />
             </Route>

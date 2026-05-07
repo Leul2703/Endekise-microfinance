@@ -83,6 +83,60 @@ const parseRequestDetails = (request) => {
   }
 };
 
+const runGet = (sql, params = []) => new Promise((resolve, reject) => {
+  db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row || null)));
+});
+
+const runAll = (sql, params = []) => new Promise((resolve, reject) => {
+  db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+});
+
+const findLinkedDocuments = async (request) => {
+  if (!request?.id) return [];
+  const details = parseRequestDetails(request);
+  const receiptDocId = details.receipt_document_id || details.receiptDocId || null;
+  const relatedEntityType = details.related_entity_type || details.relatedEntityType || null;
+  const relatedEntityId = details.related_entity_id || details.relatedEntityId || request.entity_id || null;
+
+  if (receiptDocId) {
+    const doc = await runGet('SELECT * FROM documents WHERE id = ?', [receiptDocId]);
+    return doc ? [doc] : [];
+  }
+
+  // Prefer approval_request linkage if available; fall back to related entity linkage.
+  const docs = await runAll(
+    `SELECT *
+     FROM documents
+     WHERE approval_request_id = ?
+        OR (related_entity_id = ? AND (? IS NULL OR related_entity_type = ?))
+     ORDER BY uploaded_at DESC`,
+    [request.id, relatedEntityId, relatedEntityType, relatedEntityType]
+  );
+  return docs || [];
+};
+
+const preflightApprovalRequirements = async (request) => {
+  const details = parseRequestDetails(request);
+  const requiresReceiptProof = Boolean(details.requires_receipt_proof || details.requiresReceiptProof);
+  if (!requiresReceiptProof) {
+    return;
+  }
+
+  // Enforce receipt proof for workflows that depend on external evidence.
+  const typesRequiringProof = new Set(['account_creation', 'transaction_deposit']);
+  if (!typesRequiringProof.has(request.type)) {
+    return;
+  }
+
+  const linked = await findLinkedDocuments(request);
+  if (!linked || linked.length === 0) {
+    const err = new Error('Receipt/proof is required before approval. Please attach the receipt document first.');
+    err.statusCode = 400;
+    err.code = 'MISSING_RECEIPT_PROOF';
+    throw err;
+  }
+};
+
 // Get pending approvals for current user based on role
 router.get('/pending', authenticateToken, authorizeRoles('branch_manager', 'ceo', 'admin'), (req, res) => {
   const userRole = req.user.role;
@@ -128,85 +182,145 @@ router.get('/all', authenticateToken, authorizeRoles('admin'), (req, res) => {
   });
 });
 
-// Approve request
+// Get approval history summary (branch manager/admin/ceo)
+router.get('/history', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), (req, res) => {
+  const { type } = req.query;
+  const allowedTypes = ['loan_origination', 'account_creation', 'savings_account_approval'];
+  const requestedTypes = type
+    ? String(type).split(',').map((item) => item.trim()).filter(Boolean)
+    : allowedTypes;
+  const filteredTypes = requestedTypes.filter((item) => allowedTypes.includes(item));
+  if (filteredTypes.length === 0) {
+    return res.status(400).json({ error: 'Unsupported approval history type filter.' });
+  }
+
+  const placeholders = filteredTypes.map(() => '?').join(',');
+  db.all(
+    `SELECT id, type, entity_id, amount, status, approval_level, created_at, reviewed_at, reviewed_by
+     FROM approval_requests
+     WHERE type IN (${placeholders})
+       AND status IN ('Approved', 'Rejected')
+     ORDER BY COALESCE(reviewed_at, created_at) DESC
+     LIMIT 200`,
+    filteredTypes,
+    (err, rows) => {
+      if (err) {
+        console.error('Approval history query error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      const normalized = Array.isArray(rows) ? rows : [];
+      const summary = normalized.reduce((acc, item) => {
+        const key = item.type;
+        if (!acc[key]) {
+          acc[key] = { approved: 0, rejected: 0, total: 0 };
+        }
+        if (item.status === 'Approved') acc[key].approved += 1;
+        if (item.status === 'Rejected') acc[key].rejected += 1;
+        acc[key].total += 1;
+        return acc;
+      }, {});
+
+      return res.json({
+        summary,
+        history: normalized
+      });
+    }
+  );
+});
+
+// Approve request (atomic): update approval + execute action inside DB transaction
 router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 'ceo', 'admin'), (req, res) => {
   const { id } = req.params;
   const { justification } = req.body;
   const userId = req.user.id;
   const userRole = req.user.role;
 
-  // Get approval request details
-  db.get('SELECT * FROM approval_requests WHERE id = ?', [id], (err, request) => {
+  db.get('SELECT * FROM approval_requests WHERE id = ?', [id], async (err, request) => {
     if (err) {
-      console.error('Database error:', err);
+      console.error('Database error fetching approval request:', err);
       return res.status(500).json({ error: 'Database error' });
     }
-    
+
     if (!request) {
       return res.status(404).json({ error: 'Approval request not found' });
     }
-    
+
     if (request.status !== 'Pending') {
       return res.status(400).json({ error: 'Request has already been processed' });
     }
-    
-    // Check if user has authority to approve at this level
+
     if (request.approval_level === 'ceo' && userRole !== 'ceo' && userRole !== 'admin') {
       return res.status(403).json({ error: 'Insufficient privileges to approve this request' });
     }
-    
-    // Update approval request
-    db.run(
-      "UPDATE approval_requests SET status = 'Approved', justification = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?",
-      [justification || 'Approved', userId, id],
-      function(err) {
-        if (err) {
-          console.error('Database error:', err);
-          return res.status(500).json({ error: 'Database error' });
-        }
-        
-        console.log(`[AUDIT] Approval request ${id} approved by ${userRole} (ID: ${userId}) at ${new Date().toISOString()}`);
-        
-        executeApprovedAction(request)
-          .then((result) => {
-            recordAuditEvent({
-              action: 'APPROVAL_APPROVED',
-              entityType: 'approval_request',
-              entityId: id,
-              user: req.user,
-              details: { amount: request.amount, type: request.type, justification: justification || 'Approved' }
-            }).catch(() => {});
-            // Notify requester about approval (best-effort)
-            try {
-              db.get('SELECT email, username FROM users WHERE id = ?', [request.requested_by], async (err, userRow) => {
-                if (!err && userRow && userRow.email) {
-                  const subject = `Your request ${id} has been approved`;
-                  const text = `Hello ${userRow.username || ''},\n\nYour approval request (${id}) for ${request.type} has been approved by ${req.user.role}.\n\nRegards,\nEdekise Microfinance`;
-                  try { await sendEmail(userRow.email, subject, text); } catch (e) { console.warn('Failed to send approval notification to requester', e && e.message); }
-                }
-              });
-            } catch (e) {
-              // ignore
-            }
 
-            res.json({
-              message: 'Request approved successfully',
-              execution: result || null
-            });
-          })
-          .catch((executionError) => {
-            console.error('Approval execution error:', executionError);
-            // Approval has already been recorded; return 200 with a warning so the UI
-            // doesn't show a hard failure for an already-approved request.
-            res.json({
-              message: 'Request approved successfully',
-              execution: null,
-              warning: 'Approval recorded but the requested action could not be completed',
-              details: executionError.message
-            });
+    try {
+      await preflightApprovalRequirements(request);
+    } catch (preflightError) {
+      return res.status(preflightError.statusCode || 400).json({
+        error: preflightError.message || 'Approval preflight failed',
+        code: preflightError.code || 'PREFLIGHT_FAILED'
+      });
+    }
+
+    // Perform approval update and execution inside a DB transaction so failures rollback.
+    const { withTransaction } = require('../utils/transactionWrapper');
+
+    try {
+      const executionResult = await withTransaction(async () => {
+        // mark approved
+        await new Promise((resolve, reject) => {
+          db.run(
+            "UPDATE approval_requests SET status = 'Approved', justification = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?",
+            [justification || 'Approved', userId, id],
+            function(updateErr) {
+              if (updateErr) return reject(updateErr);
+              return resolve();
+            }
+          );
+        });
+
+        // call execution within same transaction; pass reviewed_by to execution helpers
+        const execReq = { ...request, reviewed_by: userId };
+        const result = await executeApprovedAction(execReq);
+
+        // record audit event inside transaction
+        try {
+          await recordAuditEvent({
+            action: 'APPROVAL_APPROVED',
+            entityType: 'approval_request',
+            entityId: id,
+            user: req.user,
+            details: { amount: request.amount, type: request.type, justification: justification || 'Approved' }
           });
+        } catch (e) {
+          console.warn('Audit event failed to record within approval transaction:', e && e.message);
+        }
+
+        return result || null;
+      });
+
+      console.log(`[AUDIT] Approval request ${id} approved by ${userRole} (ID: ${userId}) at ${new Date().toISOString()}`);
+
+      // Notify requester about approval (best-effort, outside transaction)
+      try {
+        db.get('SELECT email, username FROM users WHERE id = ?', [request.requested_by], async (err, userRow) => {
+          if (!err && userRow && userRow.email) {
+            const subject = `Your request ${id} has been approved`;
+            const text = `Hello ${userRow.username || ''},\n\nYour approval request (${id}) for ${request.type} has been approved by ${req.user.role}.\n\nRegards,\nEdekise Microfinance`;
+            try { await sendEmail(userRow.email, subject, text); } catch (e) { console.warn('Failed to send approval notification to requester', e && e.message); }
+          }
+        });
+      } catch (e) {
+        // ignore
       }
-    );
+
+      res.json({ message: 'Request approved successfully', execution: executionResult });
+    } catch (executionError) {
+      // Transaction roll back will have been attempted; surface detailed error for debugging
+      console.error('Approval transaction failed:', executionError);
+      return res.status(500).json({ error: 'Approval execution failed', details: executionError.message });
+    }
   });
 });
 
@@ -996,6 +1110,46 @@ async function executeRejectedLoan(request, reason) {
 // Get approval thresholds (for UI)
 router.get('/thresholds', authenticateToken, (req, res) => {
   res.json(APPROVAL_THRESHOLDS);
+});
+
+// List transactions linked to approval requests
+router.get('/transactions', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
+  const { approval_id, limit = 200 } = req.query;
+  const userRole = req.user.role;
+
+  try {
+    const params = [];
+    let where = 'WHERE t.approval_request_id IS NOT NULL';
+
+    if (approval_id) {
+      where += ' AND t.approval_request_id = ?';
+      params.push(approval_id);
+    }
+
+    if (userRole === 'branch_manager') {
+      where += " AND ar.approval_level = 'branch_manager'";
+    }
+
+    const sql = `SELECT t.*, ar.type AS approval_type, ar.approval_level, ar.requested_by, ar.reviewed_by
+                 FROM transactions t
+                 LEFT JOIN approval_requests ar ON ar.id = t.approval_request_id
+                 ${where}
+                 ORDER BY t.created_at DESC, t.id DESC
+                 LIMIT ?`;
+
+    params.push(Number(limit));
+
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        console.error('Error querying approval-linked transactions:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(rows || []);
+    });
+  } catch (error) {
+    console.error('Approval transactions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router;

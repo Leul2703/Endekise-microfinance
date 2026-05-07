@@ -22,6 +22,8 @@ const MyLoans = () => {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [uploadingLoanDoc, setUploadingLoanDoc] = useState(false);
+  const [loanDocFile, setLoanDocFile] = useState(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -30,7 +32,10 @@ const MyLoans = () => {
   }, []);
 
   useEffect(() => {
-    const socket = io('http://localhost:5000', { transports: ['websocket', 'polling'] });
+    const socketBaseUrl = import.meta.env.VITE_SOCKET_URL
+      || import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '')
+      || window.location.origin;
+    const socket = io(socketBaseUrl, { transports: ['websocket', 'polling'] });
     const onLoanUpdated = () => {
       fetchLoans();
       fetchSavings();
@@ -47,13 +52,33 @@ const MyLoans = () => {
   const fetchLoans = async () => {
     try {
       const data = await api.getMyLoans().catch(() => []);
-      const activeLoans = data.filter(loan => loan.status === 'Active');
-      setLoans(activeLoans);
+      setLoans(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching loans:', error);
       showError(error.message || 'Failed to load loans');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUploadLoanSupportDocument = async (loan) => {
+    if (!loanDocFile) {
+      warning('Choose a document first.');
+      return;
+    }
+    try {
+      setUploadingLoanDoc(true);
+      const formData = new FormData();
+      formData.append('file', loanDocFile);
+      formData.append('loan_id', loan.id);
+      formData.append('type', `Loan Request Support - ${loan.status || 'Pending'}`);
+      await api.uploadDocument(formData);
+      success('Supporting document uploaded for this loan request.');
+      setLoanDocFile(null);
+    } catch (uploadError) {
+      showError(uploadError.message || 'Failed to upload supporting document.');
+    } finally {
+      setUploadingLoanDoc(false);
     }
   };
 
@@ -270,10 +295,11 @@ const MyLoans = () => {
                 </div>
                 <button 
                   className="btn-primary"
+                  disabled={loan.status !== 'Active'}
                   onClick={() => handleMakePayment(loan)}
                 >
                   <DollarSign size={18} />
-                  Make Payment
+                  {loan.status === 'Active' ? 'Make Payment' : `Status: ${loan.status}`}
                 </button>
               </div>
 
@@ -293,6 +319,25 @@ const MyLoans = () => {
                   Payment History
                 </button>
               </div>
+              {loan.status !== 'Active' && (
+                <div style={{ marginTop: '0.75rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
+                  <p style={{ marginBottom: '0.5rem', color: '#6b7280' }}>
+                    Request status: <strong>{loan.status}</strong>
+                  </p>
+                  <input
+                    type="file"
+                    onChange={(e) => setLoanDocFile(e.target.files?.[0] || null)}
+                    style={{ marginBottom: '0.5rem' }}
+                  />
+                  <button
+                    className="btn-secondary"
+                    onClick={() => handleUploadLoanSupportDocument(loan)}
+                    disabled={uploadingLoanDoc}
+                  >
+                    {uploadingLoanDoc ? 'Uploading...' : 'Upload Supporting Document'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

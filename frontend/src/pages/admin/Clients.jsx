@@ -5,13 +5,20 @@ import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 
 const EMPTY_CLIENT_FORM = {
-  name: '',
-  email: '',
+  full_name: '',
+  gender: '',
+  date_of_birth: '',
   phone: '',
   address: '',
-  gender: '',
   id_number: '',
-  income_source: ''
+  id_type: '',
+  id_document: '',
+  monthly_income: '',
+  requested_loan_amount: '',
+  income_source: '',
+  email: '',
+  id_document_file: null,
+  profile_photo_file: null
 };
 
 const Clients = () => {
@@ -96,23 +103,45 @@ const Clients = () => {
   const rejectedRequests = registrationRequests.filter((r) => r.status === 'Rejected');
 
   const handleAddClient = async () => {
-    if (!newClient.name) {
-      warning('Name is required');
+    const required = ['full_name', 'gender', 'date_of_birth', 'phone', 'address', 'id_number', 'id_type'];
+    const missing = required.filter((field) => !String(newClient[field] || '').trim());
+    if (missing.length > 0) {
+      warning('Please complete all required KYC fields before submitting.');
+      return;
+    }
+    if (!String(newClient.id_document || '').trim() && !newClient.id_document_file) {
+      warning('Please provide ID document reference or upload ID picture.');
+      return;
+    }
+    const monthlyIncome = Number(newClient.monthly_income);
+    if (!String(newClient.monthly_income).trim() || Number.isNaN(monthlyIncome) || monthlyIncome <= 0) {
+      warning('Monthly income must be a positive number.');
       return;
     }
     setIsSubmitting(true);
     try {
-      const data = await api.registerClient(newClient);
+      const data = await api.publicClientRegistration({
+        full_name: newClient.full_name,
+        gender: newClient.gender,
+        date_of_birth: newClient.date_of_birth,
+        phone: newClient.phone,
+        address: newClient.address,
+        id_number: newClient.id_number,
+        id_type: newClient.id_type,
+        id_document: newClient.id_document,
+        monthly_income: newClient.monthly_income,
+        requested_loan_amount: newClient.requested_loan_amount || 0,
+        income_source: newClient.income_source || '',
+        email: newClient.email || '',
+        id_document_file: newClient.id_document_file,
+        profile_photo_file: newClient.profile_photo_file
+      });
       setShowAddClientModal(false);
       setNewClient(EMPTY_CLIENT_FORM);
       await fetchClients();
-      if (data?.username && data?.temporary_password) {
-        success(`Client registered. Username: ${data.username}, Temp Password: ${data.temporary_password}`);
-      } else {
-        success('Client registered successfully.');
-      }
+      success(data?.message || 'Registration submitted successfully.');
     } catch (err) {
-      error(err.message || 'Failed to register client');
+      error(err.message || 'Failed to submit client registration');
     } finally {
       setIsSubmitting(false);
     }
@@ -120,13 +149,20 @@ const Clients = () => {
 
   const handleUseRegistrationRequest = (request) => {
     setNewClient({
-      name: request.full_name || '',
-      email: request.email || '',
+      full_name: request.full_name || '',
+      gender: request.gender || '',
+      date_of_birth: request.date_of_birth || '',
       phone: request.phone || '',
       address: request.address || '',
-      gender: request.gender || '',
       id_number: request.id_number || '',
-      income_source: request.income_source || ''
+      id_type: request.id_type || '',
+      id_document: request.id_document || '',
+      monthly_income: request.monthly_income || '',
+      requested_loan_amount: request.requested_loan_amount || '',
+      income_source: request.income_source || '',
+      email: request.email || '',
+      id_document_file: null,
+      profile_photo_file: null
     });
     setShowAddClientModal(true);
   };
@@ -590,7 +626,7 @@ const Clients = () => {
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2>Register New Client</h2>
+              <h2>Create Client (Registration Procedure)</h2>
               <button onClick={() => setShowAddClientModal(false)} className="modal-close">×</button>
             </div>
             <div className="modal-body">
@@ -598,9 +634,30 @@ const Clients = () => {
                 <label>Full Name <span className="required">*</span></label>
                 <input
                   type="text"
-                  value={newClient.name}
-                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                  value={newClient.full_name}
+                  onChange={(e) => setNewClient({ ...newClient, full_name: e.target.value })}
                   placeholder="Enter full name"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Gender <span className="required">*</span></label>
+                <select
+                  value={newClient.gender}
+                  onChange={(e) => setNewClient({ ...newClient, gender: e.target.value })}
+                  required
+                >
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Date of Birth <span className="required">*</span></label>
+                <input
+                  type="date"
+                  value={newClient.date_of_birth}
+                  onChange={(e) => setNewClient({ ...newClient, date_of_birth: e.target.value })}
                   required
                 />
               </div>
@@ -614,34 +671,95 @@ const Clients = () => {
                 />
               </div>
               <div className="form-group">
-                <label>Phone</label>
+                <label>Phone <span className="required">*</span></label>
                 <input
                   type="tel"
                   value={newClient.phone}
                   onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
                   placeholder="Enter phone number"
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>Address</label>
+                <label>Address <span className="required">*</span></label>
                 <input
                   type="text"
                   value={newClient.address}
                   onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
                   placeholder="Enter address"
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>National ID / Kebele ID</label>
+                <label>ID Type <span className="required">*</span></label>
+                <select
+                  value={newClient.id_type}
+                  onChange={(e) => setNewClient({ ...newClient, id_type: e.target.value })}
+                  required
+                >
+                  <option value="">Select ID type</option>
+                  <option value="National ID">National ID</option>
+                  <option value="Passport">Passport</option>
+                  <option value="Driving License">Driving License</option>
+                  <option value="Kebele ID">Kebele ID</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>ID Number <span className="required">*</span></label>
                 <input
                   type="text"
                   value={newClient.id_number}
                   onChange={(e) => setNewClient({ ...newClient, id_number: e.target.value })}
                   placeholder="Enter verified ID number"
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>Income Source</label>
+                <label>ID Document Reference</label>
+                <input
+                  type="text"
+                  value={newClient.id_document}
+                  onChange={(e) => setNewClient({ ...newClient, id_document: e.target.value })}
+                  placeholder="Document number or upload reference"
+                />
+              </div>
+              <div className="form-group">
+                <label>Upload ID Picture (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNewClient({ ...newClient, id_document_file: e.target.files?.[0] || null })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Upload Profile Picture (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNewClient({ ...newClient, profile_photo_file: e.target.files?.[0] || null })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Monthly Income (ETB) <span className="required">*</span></label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newClient.monthly_income}
+                  onChange={(e) => setNewClient({ ...newClient, monthly_income: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Requested Loan Amount (Optional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newClient.requested_loan_amount}
+                  onChange={(e) => setNewClient({ ...newClient, requested_loan_amount: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Income Source (Optional)</label>
                 <select
                   value={newClient.income_source}
                   onChange={(e) => setNewClient({ ...newClient, income_source: e.target.value })}
@@ -656,18 +774,6 @@ const Clients = () => {
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label>Gender</label>
-                <select
-                  value={newClient.gender}
-                  onChange={(e) => setNewClient({ ...newClient, gender: e.target.value })}
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
               <div className="modal-actions">
                 <button className="btn-secondary" onClick={() => setShowAddClientModal(false)} disabled={isSubmitting}>
                   Cancel
@@ -676,12 +782,12 @@ const Clients = () => {
                   {isSubmitting ? (
                     <>
                       <span className="spinner"></span>
-                      Registering...
+                      Submitting...
                     </>
                   ) : (
                     <>
                       <Plus size={18} />
-                      Register Client
+                      Submit Registration
                     </>
                   )}
                 </button>

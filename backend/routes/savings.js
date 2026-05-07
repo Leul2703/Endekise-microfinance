@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { db } = require('../config/database');
 const { getUserRecord, resolveClientProfileByUser } = require('../utils/clientProfile');
+const { withTransaction } = require('../utils/transactionWrapper');
 
 const SAVINGS_OPTIONS = [
   {
@@ -165,35 +166,41 @@ router.post('/apply', authenticateToken, authorizeRoles('client'), async (req, r
     const savingsId = `SV-${Date.now()}`;
     const transactionId = `TXN-${Date.now()}`;
 
-    await runExec(
-      `INSERT INTO savings_accounts (id, client_id, amount, type, interest_rate, maturity_date, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [savingsId, client.id, numericAmount, option.type, appliedInterestRate, maturityDate, 'Pending']
-    );
-
     const approvalRequestId = `APR-${Date.now()}`;
-    await runExec(
-      `INSERT INTO approval_requests (id, type, entity_id, amount, requested_by, status, approval_level, details)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        approvalRequestId,
-        'account_creation',
-        savingsId,
-        numericAmount,
-        req.user.id,
-        'Pending',
-        'branch_manager',
-        JSON.stringify({
-          client_id: client.id,
-          client_name: client.name,
-          account_type: 'savings',
-          opening_balance: numericAmount,
-          product_type: option.type,
-          source_table: 'savings_accounts',
-          kyc_status: client.kyc_status || 'Pending'
-        })
-      ]
-    );
+
+    await withTransaction(async () => {
+      await runExec(
+        `INSERT INTO savings_accounts (id, client_id, amount, type, interest_rate, maturity_date, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [savingsId, client.id, numericAmount, option.type, appliedInterestRate, maturityDate, 'Pending']
+      );
+
+      await runExec(
+        `INSERT INTO approval_requests (id, type, entity_id, amount, requested_by, status, approval_level, details)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          approvalRequestId,
+          'account_creation',
+          savingsId,
+          numericAmount,
+          req.user.id,
+          'Pending',
+          'branch_manager',
+          JSON.stringify({
+            client_id: client.id,
+            client_name: client.name,
+            account_type: 'savings',
+            opening_balance: numericAmount,
+            product_type: option.type,
+            source_table: 'savings_accounts',
+            kyc_status: client.kyc_status || 'Pending',
+            requires_receipt_proof: true,
+            related_entity_type: 'savings_account',
+            related_entity_id: savingsId
+          })
+        ]
+      );
+    });
 
     console.log(`[AUDIT] Savings scheme created: ${savingsId} for client ${client.id} by user ${req.user.id} at ${new Date().toISOString()}`);
 

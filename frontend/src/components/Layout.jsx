@@ -14,7 +14,8 @@ import {
   Settings,
   BarChart3,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Key
 } from 'lucide-react';
 import './Layout.css';
 
@@ -37,6 +38,7 @@ const Layout = () => {
       { icon: Users, labelKey: 'nav_staff_users', path: '/admin/users' },
       { icon: Users, labelKey: 'nav_client_management', path: '/admin/clients' },
       { icon: DollarSign, labelKey: 'nav_manage_accounts', path: '/admin/accounts' },
+      { icon: Key, labelKey: 'nav_unlock_requests', path: '/admin/unlock-requests' },
       { icon: FileText, labelKey: 'nav_view_logs', path: '/admin/logs' },
       { icon: Settings, labelKey: 'nav_settings', path: '/admin/settings' },
     ],

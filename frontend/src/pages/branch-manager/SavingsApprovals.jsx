@@ -73,9 +73,14 @@ const SavingsApprovals = () => {
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [historySummary, setHistorySummary] = useState({
+    accountCreation: { approved: 0, rejected: 0, total: 0 },
+    savingsApproval: { approved: 0, rejected: 0, total: 0 }
+  });
 
   useEffect(() => {
     fetchPendingApprovals();
+    fetchHistorySummary();
   }, []);
 
   const fetchPendingApprovals = async () => {
@@ -95,6 +100,18 @@ const SavingsApprovals = () => {
       setApprovals([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistorySummary = async () => {
+    try {
+      const data = await api.getApprovalHistory('account_creation,savings_account_approval');
+      setHistorySummary({
+        accountCreation: data?.summary?.account_creation || { approved: 0, rejected: 0, total: 0 },
+        savingsApproval: data?.summary?.savings_account_approval || { approved: 0, rejected: 0, total: 0 }
+      });
+    } catch (historyErr) {
+      console.error('Error fetching savings approval history summary:', historyErr);
     }
   };
 
@@ -178,6 +195,30 @@ const SavingsApprovals = () => {
     }
   };
 
+  const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `document_${new Date().toISOString().slice(0, 10)}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadReceipt = async (documentId) => {
+    if (!documentId) return;
+    try {
+      const { blob, contentDisposition } = await api.downloadDocument(documentId);
+      const match = /filename="([^"]+)"/i.exec(contentDisposition || '');
+      downloadBlob(blob, match?.[1] || `receipt_${documentId}.pdf`);
+      success('Receipt downloaded');
+    } catch (err) {
+      console.error('Receipt download error:', err);
+      error(err.message || 'Failed to download receipt');
+    }
+  };
+
   return (
     <div className="admin-page">
       <div className="page-header">
@@ -216,6 +257,22 @@ const SavingsApprovals = () => {
             <h3>{summary.escalated}</h3>
             <p>CEO-Level Reviews</p>
             <span className="stat-change">Escalated</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon"><CheckCircle size={24} /></div>
+          <div className="stat-content">
+            <h3>{historySummary.accountCreation.approved + historySummary.savingsApproval.approved}</h3>
+            <p>Approved (History)</p>
+            <span className="stat-change">Savings and account approvals</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon"><XCircle size={24} /></div>
+          <div className="stat-content">
+            <h3>{historySummary.accountCreation.rejected + historySummary.savingsApproval.rejected}</h3>
+            <p>Rejected (History)</p>
+            <span className="stat-change">Savings and account rejections</span>
           </div>
         </div>
       </div>
@@ -428,6 +485,26 @@ const SavingsApprovals = () => {
                   {JSON.stringify(selectedApproval.details, null, 2)}
                 </pre>
               </div>
+              {selectedApproval.details?.requires_receipt_proof && (
+                <div className="form-group">
+                  <label>Receipt Proof</label>
+                  {selectedApproval.details?.receipt_document_id ? (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleDownloadReceipt(selectedApproval.details.receipt_document_id)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      <Eye size={18} />
+                      Download Receipt ({selectedApproval.details.receipt_document_id})
+                    </button>
+                  ) : (
+                    <div className="info-card" style={{ margin: 0, borderColor: '#fca5a5', background: '#fef2f2' }}>
+                      Missing receipt proof. Maker must attach the receipt before approval.
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="modal-actions">
                 <button className="btn-secondary" onClick={() => setShowDetailsModal(false)}>
                   Close

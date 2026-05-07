@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Lock, User, Sparkles, ArrowRight, AlertCircle, Home, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
+import api from '../utils/api';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -13,6 +14,7 @@ const Login = () => {
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorState, setTwoFactorState] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [unlockRequested, setUnlockRequested] = useState(false);
   const { login, verifyTwoFactor, completeTwoFactorSetup } = useAuth();
   const navigate = useNavigate();
 
@@ -89,6 +91,23 @@ const Login = () => {
     setIsSubmitting(false);
   };
 
+  const handleRequestUnlock = async () => {
+    if (!credentials.username.trim()) {
+      setError('Enter your username first, then request account unlock.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const response = await api.requestAccountUnlock({ username: credentials.username.trim() });
+      setUnlockRequested(true);
+      setError(response?.message || 'Unlock request submitted. Admin will review and unlock your account.');
+    } catch (requestErr) {
+      setError(requestErr.message || 'Failed to submit unlock request. Please contact admin.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="login-container">
       <div className="login-background">
@@ -123,6 +142,17 @@ const Login = () => {
               <AlertCircle size={18} />
               {error}
             </div>
+          )}
+          {error.toLowerCase().includes('account locked') && (
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ width: '100%', marginBottom: '0.75rem' }}
+              disabled={isSubmitting || unlockRequested}
+              onClick={handleRequestUnlock}
+            >
+              {unlockRequested ? 'Unlock Request Sent' : 'Request Admin Unlock'}
+            </button>
           )}
 
           <div className="form-group">

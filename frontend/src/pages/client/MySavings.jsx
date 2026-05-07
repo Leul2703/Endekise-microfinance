@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PiggyBank, TrendingUp, Plus, Download, X, Wallet, Landmark, FileText } from 'lucide-react';
+import { PiggyBank, TrendingUp, Plus, Download, X, Wallet, Landmark, FileText, Upload } from 'lucide-react';
 import '../admin/AdminPages.css';
 import './ClientPages.css';
 import api from '../../utils/api';
@@ -27,6 +27,15 @@ const MySavings = () => {
   const [formError, setFormError] = useState('');
   const [receipt, setReceipt] = useState(null);
   const [newSaving, setNewSaving] = useState(initialSavingForm);
+  const [savingsDocFile, setSavingsDocFile] = useState(null);
+  const [uploadingSavingsDoc, setUploadingSavingsDoc] = useState(false);
+  const [receiptProofFile, setReceiptProofFile] = useState(null);
+  const [depositReceiptFile, setDepositReceiptFile] = useState(null);
+  const [uploadingReceiptProof, setUploadingReceiptProof] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositDescription, setDepositDescription] = useState('');
+  const [depositSubmitting, setDepositSubmitting] = useState(false);
 
   useEffect(() => {
     fetchSavings();
@@ -37,12 +46,32 @@ const MySavings = () => {
   const fetchSavings = async () => {
     try {
       const data = await api.getMySavings();
-      setSavings(data.filter((saving) => saving.status === 'Active'));
+      setSavings(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching savings:', error);
       setSavings([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUploadSavingsSupportDocument = async (saving) => {
+    if (!savingsDocFile) {
+      warning('Please choose a file first.');
+      return;
+    }
+    try {
+      setUploadingSavingsDoc(true);
+      const formData = new FormData();
+      formData.append('file', savingsDocFile);
+      formData.append('type', `Savings Request Support - ${saving.id}`);
+      await api.uploadDocument(formData);
+      success('Supporting document uploaded successfully.');
+      setSavingsDocFile(null);
+    } catch (err) {
+      setFormError(err.message || 'Failed to upload supporting document.');
+    } finally {
+      setUploadingSavingsDoc(false);
     }
   };
 
@@ -105,6 +134,16 @@ const MySavings = () => {
     setFormError('');
     setReceipt(null);
     setTransactionSuccess(false);
+    setReceiptProofFile(null);
+  };
+
+  const openDepositModal = (account) => {
+    setSelectedAccount(account);
+    setDepositAmount('');
+    setDepositDescription('');
+    setDepositReceiptFile(null);
+    setFormError('');
+    setShowDepositModal(true);
   };
 
   const handleWithdrawSubmit = async (e) => {
@@ -138,6 +177,10 @@ const MySavings = () => {
     }
 
     try {
+      if (!receiptProofFile) {
+        setFormError('Receipt proof is required for savings scheme creation. Please attach the payment receipt (PDF/JPG).');
+        return;
+      }
       const result = await api.applySavings({
         type: newSaving.type,
         amount: parseFloat(newSaving.amount),
@@ -146,12 +189,74 @@ const MySavings = () => {
       });
 
       setReceipt(result.receipt || null);
+      // Upload receipt proof and link it to the approval request + savings entity
+      setUploadingReceiptProof(true);
+      const proof = new FormData();
+      proof.append('file', receiptProofFile);
+      proof.append('type', 'Receipt - Savings Opening');
+      if (result?.approval_request_id) {
+        proof.append('approval_request_id', result.approval_request_id);
+      }
+      if (result?.savings?.id) {
+        proof.append('related_entity_type', 'savings_account');
+        proof.append('related_entity_id', result.savings.id);
+      }
+      await api.uploadDocument(proof);
       setTransactionSuccess(true);
       await Promise.all([fetchSavings(), fetchTransactions()]);
       success(result.message || 'Saving transaction recorded successfully.');
     } catch (error) {
       console.error('Saving application error:', error);
       setFormError(error.message);
+    } finally {
+      setUploadingReceiptProof(false);
+    }
+  };
+
+  const handleSubmitDepositRequest = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!selectedAccount?.id) {
+      setFormError('No savings account selected.');
+      return;
+    }
+    const numericAmount = parseFloat(depositAmount);
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
+      setFormError('Please enter a valid deposit amount.');
+      return;
+    }
+    if (!depositReceiptFile) {
+      setFormError('Receipt proof is required for a deposit request. Please attach the receipt (PDF/JPG).');
+      return;
+    }
+
+    try {
+      setDepositSubmitting(true);
+      // 1) Upload receipt first
+      const proof = new FormData();
+      proof.append('file', depositReceiptFile);
+      proof.append('type', `Receipt - Savings Deposit - ${selectedAccount.id}`);
+      proof.append('related_entity_type', 'savings_account');
+      proof.append('related_entity_id', selectedAccount.id);
+      const uploaded = await api.uploadDocument(proof);
+
+      // 2) Submit approval request referencing receipt id
+      const resp = await api.submitClientDepositRequest({
+        account_id: selectedAccount.id,
+        amount: numericAmount,
+        description: depositDescription || 'Client deposit (receipt submitted)',
+        receipt_document_id: uploaded?.id
+      });
+
+      success(resp?.message || 'Deposit request submitted for approval.');
+      setShowDepositModal(false);
+    } catch (err) {
+      console.error('Deposit request error:', err);
+      setFormError(err.message || 'Failed to submit deposit request.');
+      warning(err.message || 'Failed to submit deposit request.');
+    } finally {
+      setDepositSubmitting(false);
     }
   };
 
@@ -342,15 +447,38 @@ const MySavings = () => {
               </div>
 
               <div className="savings-actions">
-                <button className="btn-secondary" onClick={() => openWithdrawModal(saving)}>
+                <button className="btn-secondary" onClick={() => openWithdrawModal(saving)} disabled={saving.status !== 'Active'}>
                   <TrendingUp size={18} />
-                  Withdraw
+                  {saving.status === 'Active' ? 'Withdraw' : `Status: ${saving.status}`}
+                </button>
+                <button className="btn-secondary" onClick={() => openDepositModal(saving)} disabled={saving.status !== 'Active'}>
+                  <Upload size={18} />
+                  Deposit (Receipt)
                 </button>
                 <button className="btn-secondary" onClick={() => handleDownloadStatement(saving)}>
                   <Download size={18} />
                   Statement
                 </button>
               </div>
+              {saving.status !== 'Active' && (
+                <div style={{ marginTop: '0.75rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.75rem' }}>
+                  <p style={{ marginBottom: '0.5rem', color: '#6b7280' }}>
+                    Request status: <strong>{saving.status}</strong>
+                  </p>
+                  <input
+                    type="file"
+                    onChange={(e) => setSavingsDocFile(e.target.files?.[0] || null)}
+                    style={{ marginBottom: '0.5rem' }}
+                  />
+                  <button
+                    className="btn-secondary"
+                    onClick={() => handleUploadSavingsSupportDocument(saving)}
+                    disabled={uploadingSavingsDoc}
+                  >
+                    {uploadingSavingsDoc ? 'Uploading...' : 'Upload Supporting Document'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -502,6 +630,19 @@ const MySavings = () => {
                 {renderFeedback()}
 
                 <div className="form-group">
+                  <label>Payment Receipt Proof (PDF/JPG) <span className="required">*</span></label>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                    onChange={(e) => setReceiptProofFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <small style={{ color: '#6b7280' }}>
+                    This receipt will be reviewed by the Branch Manager before approval.
+                  </small>
+                </div>
+
+                <div className="form-group">
                   <label>Saving Type</label>
                   <select
                     value={newSaving.type}
@@ -567,11 +708,80 @@ const MySavings = () => {
                   </button>
                   <button type="submit" className="btn-primary">
                     <Plus size={18} />
-                    Confirm Saving
+                    {uploadingReceiptProof ? 'Uploading receipt...' : 'Confirm Saving'}
                   </button>
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {showDepositModal && selectedAccount && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Submit Deposit (Receipt Proof)</h2>
+              <button className="modal-close" onClick={() => setShowDepositModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitDepositRequest}>
+              {renderFeedback()}
+              <div className="payment-details">
+                <div className="payment-detail-row">
+                  <span className="label">Account ID:</span>
+                  <span className="value">{selectedAccount.id}</span>
+                </div>
+                <div className="payment-detail-row">
+                  <span className="label">Current Balance:</span>
+                  <span className="value">{selectedAccount.amount?.toLocaleString() || '0'} ETB</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Deposit Amount (ETB) <span className="required">*</span></label>
+                <input
+                  type="number"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  min="1"
+                  step="0.01"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description (Optional)</label>
+                <input
+                  type="text"
+                  value={depositDescription}
+                  onChange={(e) => setDepositDescription(e.target.value)}
+                  placeholder="e.g., Cash deposit at branch"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Receipt Proof (PDF/JPG) <span className="required">*</span></label>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                  onChange={(e) => setDepositReceiptFile(e.target.files?.[0] || null)}
+                  required
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowDepositModal(false)} disabled={depositSubmitting}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={depositSubmitting}>
+                  <Upload size={18} />
+                  {depositSubmitting ? 'Submitting...' : 'Submit for Approval'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

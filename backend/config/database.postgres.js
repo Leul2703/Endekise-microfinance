@@ -287,6 +287,9 @@ const schemaStatements = [
     id TEXT PRIMARY KEY,
     client_id INTEGER NOT NULL REFERENCES clients(id),
     loan_id TEXT,
+    approval_request_id TEXT,
+    related_entity_type TEXT,
+    related_entity_id TEXT,
     type TEXT NOT NULL,
     file_name TEXT NOT NULL,
     file_path TEXT NOT NULL,
@@ -352,6 +355,23 @@ const schemaStatements = [
     reviewed_at TIMESTAMP,
     reviewed_by INTEGER REFERENCES users(id)
   )`,
+
+  `CREATE TABLE IF NOT EXISTS account_unlock_requests (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    requested_user_id INTEGER NOT NULL REFERENCES users(id),
+    requested_user_email TEXT,
+    requested_user_name TEXT,
+    contact TEXT,
+    status TEXT DEFAULT 'Pending',
+    reason TEXT,
+    lock_until TIMESTAMP,
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP,
+    reviewed_by INTEGER REFERENCES users(id),
+    rejection_reason TEXT
+  )`,
+
   `CREATE TABLE IF NOT EXISTS payment_schedule (
     id TEXT PRIMARY KEY,
     loan_id TEXT NOT NULL REFERENCES loan_accounts(id),
@@ -483,6 +503,9 @@ const indexStatements = [
   'CREATE INDEX IF NOT EXISTS idx_audit_trail_timestamp ON audit_trail(timestamp)',
   'CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status)',
   'CREATE INDEX IF NOT EXISTS idx_approval_requests_type ON approval_requests(type)',
+  'CREATE INDEX IF NOT EXISTS idx_account_unlock_requests_status ON account_unlock_requests(status)',
+  'CREATE INDEX IF NOT EXISTS idx_account_unlock_requests_username ON account_unlock_requests(username)',
+  'CREATE INDEX IF NOT EXISTS idx_account_unlock_requests_requested_at ON account_unlock_requests(requested_at)',
   'CREATE INDEX IF NOT EXISTS idx_documents_client ON documents(client_id)',
   'CREATE INDEX IF NOT EXISTS idx_documents_loan ON documents(loan_id)',
   'CREATE INDEX IF NOT EXISTS idx_update_requests_client ON update_requests(client_id)',
@@ -621,6 +644,9 @@ const initializeDatabase = async () => {
   await ensureColumnExists('payment_schedule', 'principal_paid', 'NUMERIC(15, 2) DEFAULT 0');
   await ensureColumnExists('payment_schedule', 'interest_paid', 'NUMERIC(15, 2) DEFAULT 0');
   await ensureColumnExists('payment_schedule', 'paid_amount', 'NUMERIC(15, 2) DEFAULT 0');
+  await ensureColumnExists('documents', 'approval_request_id', 'TEXT');
+  await ensureColumnExists('documents', 'related_entity_type', 'TEXT');
+  await ensureColumnExists('documents', 'related_entity_id', 'TEXT');
 
   await pool.query(`
     UPDATE loan_accounts la

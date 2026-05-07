@@ -11,14 +11,20 @@ const LOAN_TYPE_CONFIG = {
     minAmount: 50000,
     maxAmount: 90000,
     minTermMonths: 12,
-    maxTermMonths: 24
+    maxTermMonths: 24,
+    requiredDocuments: [
+      { label: 'Business License / Trade License', type: 'Business License' }
+    ]
   },
   'Individual Business Loan': {
     interestRate: 7.5,
     minAmount: 10000,
     maxAmount: 50000,
     minTermMonths: 1,
-    maxTermMonths: 1
+    maxTermMonths: 1,
+    requiredDocuments: [
+      { label: 'Business License / Trade License', type: 'Business License' }
+    ]
   },
   'Consumption Loan': {
     interestRate: 9,
@@ -29,13 +35,19 @@ const LOAN_TYPE_CONFIG = {
   'Construction Loan': {
     interestRate: 12,
     minAmount: 100000,
-    maxAmount: 500000
+    maxAmount: 500000,
+    requiredDocuments: [
+      { label: 'Lease / Property Document', type: 'Lease / Property' }
+    ]
   },
   'Agricultural Business Loan': {
     interestRate: 10,
     minAmount: 100000,
     maxAmount: 300000,
-    requiredIncomeSources: ['Agriculture']
+    requiredIncomeSources: ['Agriculture'],
+    requiredDocuments: [
+      { label: 'Land Lease / Farm License', type: 'Land Lease / Farm License' }
+    ]
   }
 };
 
@@ -71,6 +83,9 @@ const LoanManagement = () => {
   const [organizationLetterFile, setOrganizationLetterFile] = useState(null);
   const [organizationLetterUploading, setOrganizationLetterUploading] = useState(false);
   const [organizationLetterDocumentId, setOrganizationLetterDocumentId] = useState('');
+  const [supportingDocFile, setSupportingDocFile] = useState(null);
+  const [supportingDocUploading, setSupportingDocUploading] = useState(false);
+  const [supportingDocIds, setSupportingDocIds] = useState([]);
   const [newClientData, setNewClientData] = useState({
     name: '',
     email: '',
@@ -95,6 +110,9 @@ const LoanManagement = () => {
   );
   const selectedClientIncomeSource = String(selectedSavingsAccount?.client_income_source || '').trim();
   const currentLoanTypeConfig = LOAN_TYPE_CONFIG[newLoanData.type] || null;
+  const requiredDocsForType = Array.isArray(currentLoanTypeConfig?.requiredDocuments)
+    ? currentLoanTypeConfig.requiredDocuments
+    : [];
 
   useEffect(() => {
     const rate = LOAN_TYPE_CONFIG[newLoanData.type]?.interestRate;
@@ -109,6 +127,7 @@ const LoanManagement = () => {
   const [paymentSchedule, setPaymentSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
+  const [generatingSchedule, setGeneratingSchedule] = useState(false);
 
   const fetchLoans = useCallback(async (showRefresh = false) => {
     if (showRefresh) {
@@ -266,6 +285,32 @@ const LoanManagement = () => {
     }
   };
 
+  const handleGenerateSchedule = async () => {
+    if (!selectedLoan?.id) {
+      warning('Select a loan first.');
+      return;
+    }
+    try {
+      setGeneratingSchedule(true);
+      const startDate = selectedLoan.disbursement_date || selectedLoan.dueDate || new Date().toISOString().split('T')[0];
+      const result = await api.generatePaymentSchedule({
+        loan_id: selectedLoan.id,
+        principal_amount: Number(selectedLoan.amount || 0),
+        interest_rate: Number(selectedLoan.interest_rate || selectedLoan.interestRate || 0),
+        term_months: Number(String(selectedLoan.term || '12').match(/\d+/)?.[0] || 12),
+        start_date: startDate,
+        payment_frequency: selectedLoan.payment_frequency || 'Monthly'
+      });
+      setPaymentSchedule(Array.isArray(result?.schedule) ? result.schedule : []);
+      success('Payment schedule generated successfully.');
+    } catch (err) {
+      console.error('Error generating payment schedule:', err);
+      error(err.message || 'Failed to generate payment schedule');
+    } finally {
+      setGeneratingSchedule(false);
+    }
+  };
+
   const saveEdit = async () => {
     try {
       await api.updateLoan(selectedLoan.id, {
@@ -354,6 +399,10 @@ const LoanManagement = () => {
         setOrganizationLetterUploading(false);
       }
     }
+    if (requiredDocsForType.length > 0 && supportingDocIds.length === 0) {
+      warning(`This loan type requires document upload: ${requiredDocsForType.map((d) => d.label).join(', ')}.`);
+      return;
+    }
     if (Array.isArray(configured.requiredIncomeSources) && configured.requiredIncomeSources.length > 0) {
       if (!configured.requiredIncomeSources.includes(selectedClientIncomeSource)) {
         warning(`Selected client is not eligible for ${newLoanData.type}. Required income source: ${configured.requiredIncomeSources.join(', ')}.`);
@@ -395,6 +444,8 @@ const LoanManagement = () => {
       setNewGuarantor({ id: '', amount: '' });
       setOrganizationLetterFile(null);
       setOrganizationLetterDocumentId('');
+      setSupportingDocFile(null);
+      setSupportingDocIds([]);
       setNewClientData({
         name: '',
         email: '',
@@ -415,6 +466,36 @@ const LoanManagement = () => {
       error(err.message || 'Failed to submit loan application');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const uploadSupportingDocument = async () => {
+    if (!supportingDocFile) {
+      warning('Choose a document first.');
+      return;
+    }
+    if (!newLoanData.clientId) {
+      warning('Select a savings account (client) before uploading documents.');
+      return;
+    }
+    try {
+      setSupportingDocUploading(true);
+      const formData = new FormData();
+      formData.append('file', supportingDocFile);
+      formData.append('client_id', newLoanData.clientId);
+      formData.append('type', requiredDocsForType[0]?.type || 'Loan Supporting Document');
+      const uploaded = await api.uploadDocument(formData);
+      if (uploaded?.id) {
+        setSupportingDocIds((curr) => Array.from(new Set([...(curr || []), uploaded.id])));
+        success(`Uploaded document: ${uploaded.id}`);
+      } else {
+        warning('Upload completed, but document id was not returned.');
+      }
+      setSupportingDocFile(null);
+    } catch (err) {
+      error(err.message || 'Failed to upload supporting document');
+    } finally {
+      setSupportingDocUploading(false);
     }
   };
 
@@ -775,6 +856,9 @@ const LoanManagement = () => {
                 </div>
               )}
               <div className="modal-actions">
+                <button className="btn-primary" onClick={handleGenerateSchedule} disabled={generatingSchedule}>
+                  {generatingSchedule ? 'Generating...' : 'Generate Schedule'}
+                </button>
                 <button className="btn-secondary" onClick={() => setShowScheduleModal(false)}>
                   Cancel
                 </button>
@@ -1100,6 +1184,32 @@ const LoanManagement = () => {
                       {organizationLetterDocumentId
                         ? `Uploaded and linked: ${organizationLetterDocumentId}`
                         : (organizationLetterFile ? `Selected file: ${organizationLetterFile.name}` : 'No document uploaded yet')}
+                    </small>
+                  </div>
+                </div>
+              )}
+              {requiredDocsForType.length > 0 && (
+                <div className="form-group full-width">
+                  <label>Required Supporting Documents <span className="required">*</span></label>
+                  <div className="info-card" style={{ marginBottom: '0.75rem', background: '#f9fafb', borderColor: '#e5e7eb' }}>
+                    <div>
+                      <strong>Required:</strong> {requiredDocsForType.map((d) => d.label).join(', ')}
+                      <p style={{ margin: '0.35rem 0 0 0', color: '#6b7280' }}>
+                        Upload at least one document before submitting the loan application.
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                    onChange={(e) => setSupportingDocFile(e.target.files?.[0] || null)}
+                  />
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                    <button type="button" className="btn-secondary" onClick={uploadSupportingDocument} disabled={supportingDocUploading || !supportingDocFile}>
+                      {supportingDocUploading ? 'Uploading...' : 'Upload Document'}
+                    </button>
+                    <small style={{ color: '#6b7280' }}>
+                      {supportingDocIds.length > 0 ? `Uploaded: ${supportingDocIds.join(', ')}` : 'No document uploaded yet.'}
                     </small>
                   </div>
                 </div>
