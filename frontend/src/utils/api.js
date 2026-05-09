@@ -159,6 +159,7 @@ export const api = {
 
   // Users
   getUsers: () => fetchWithAuth('/users'),
+  getArchivedUsers: () => fetchWithAuth('/users/archived'),
   getUser: (id) => fetchWithAuth(`/users/${id}`),
   createUser: (userData) => fetchWithAuth('/users', {
     method: 'POST',
@@ -177,9 +178,13 @@ export const api = {
   }),
   getAvailablePermissions: () => fetchWithAuth('/users/permissions/available'),
   getUserPermissions: (userId) => fetchWithAuth(`/users/${userId}/permissions`),
-  assignUserPermission: (userId, permissionId) => fetchWithAuth(`/users/${userId}/permissions`, {
+  assignUserPermission: (userId, permissionOrPayload) => fetchWithAuth(`/users/${userId}/permissions`, {
     method: 'POST',
-    body: JSON.stringify({ permission: permissionId })
+    body: JSON.stringify(
+      typeof permissionOrPayload === 'object' && permissionOrPayload !== null
+        ? permissionOrPayload
+        : { permission: permissionOrPayload }
+    )
   }),
   revokeUserPermission: (id, permissionId) => fetchWithAuth(`/users/${id}/permissions/${permissionId}`, {
     method: 'DELETE'
@@ -442,6 +447,8 @@ export const api = {
   getDocuments: () => fetchWithAuth('/documents'),
   getDocumentsByApprovalRequest: (approvalRequestId) => fetchWithAuth(`/documents/approval/${approvalRequestId}`),
   getDocumentsByLoan: (loanId) => fetchWithAuth(`/documents/loan/${loanId}`),
+  getDocumentsBySavings: (savingsId) => fetchWithAuth(`/documents/savings/${savingsId}`),
+  getDocumentsByEntity: (entityType, entityId) => fetchWithAuth(`/documents/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}`),
   downloadDocument: (documentId) => fetchBlobWithAuth(`/documents/${documentId}/download`),
   uploadDocument: (formData) => {
     const token = getAuthToken();
@@ -547,6 +554,16 @@ export const api = {
   }),
   getAccountTransactions: (accountId) => fetchWithAuth(`/transactions/account/${accountId}`),
   getMySavingsTransactions: () => fetchWithAuth('/transactions/my-savings'),
+  getRecentTransactions: (limit = 30, filters = {}) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    if (filters?.type) params.set('type', filters.type);
+    if (filters?.account_type) params.set('account_type', filters.account_type);
+    if (filters?.query) params.set('query', filters.query);
+    if (filters?.start_date) params.set('start_date', filters.start_date);
+    if (filters?.end_date) params.set('end_date', filters.end_date);
+    return fetchWithAuth(`/transactions/history/recent?${params.toString()}`);
+  },
 
   // Branches
   getBranches: () => fetchWithAuth('/branches'),
@@ -579,7 +596,9 @@ export const api = {
   downloadLoanStatementCsv: (loanId) => fetchBlobWithAuth(`/statements/loan/${loanId}/download?format=csv`),
   downloadSavingsStatementCsv: (accountId) => fetchBlobWithAuth(`/statements/savings/${accountId}/download?format=csv`),
   downloadLoanStatementPdf: (loanId) => fetchBlobWithAuth(`/statements/loan/${loanId}/download?format=pdf`),
-  downloadSavingsStatementPdf: (accountId) => fetchBlobWithAuth(`/statements/savings/${accountId}/download?format=pdf`)
+  downloadSavingsStatementPdf: (accountId) => fetchBlobWithAuth(`/statements/savings/${accountId}/download?format=pdf`),
+  downloadTransactionStatementPdf: (transactionId) => fetchBlobWithAuth(`/statements/transaction/${transactionId}/download?format=pdf`),
+  downloadTransactionStatementCsv: (transactionId) => fetchBlobWithAuth(`/statements/transaction/${transactionId}/download?format=csv`)
 };
 
 export default api;

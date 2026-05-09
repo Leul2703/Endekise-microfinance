@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import { io } from 'socket.io-client';
+import { formatDateOnly, formatDateTime } from '../../utils/dateTime';
 
 const MyLoans = () => {
   const { success, error: showError, warning } = useToast();
@@ -496,7 +497,7 @@ const MyLoans = () => {
                   {paymentSchedule.map((payment, index) => (
                     <tr key={payment.id}>
                       <td>{index + 1}</td>
-                      <td>{payment.due_date}</td>
+                      <td>{formatDateOnly(payment.due_date)}</td>
                       <td>{payment.principal_amount?.toFixed(2) || '0'} ETB</td>
                       <td>{payment.interest_amount?.toFixed(2) || '0'} ETB</td>
                       <td>{payment.total_amount?.toFixed(2) || '0'} ETB</td>
@@ -565,7 +566,7 @@ const MyLoans = () => {
                         </span>
                       </td>
                       <td>{txn.amount?.toLocaleString() || '0'} ETB</td>
-                      <td>{txn.created_at}</td>
+                      <td>{formatDateTime(txn.created_at)}</td>
                       <td>{txn.balance_after?.toLocaleString() || '0'} ETB</td>
                     </tr>
                   ))}

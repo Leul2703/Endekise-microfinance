@@ -2,6 +2,7 @@ import { AlertTriangle, BarChart3, DollarSign, Download, FileText, Filter, Shiel
 import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useEffect, useMemo, useState } from 'react';
+import { formatDateTime } from '../../utils/dateTime';
 
 const formatCurrency = (value) => `${(Number(value || 0) / 1000000).toFixed(1)}M ETB`;
 
@@ -202,7 +203,7 @@ const Reports = () => {
                     <td>{alert.account_id || '-'}</td>
                     <td><span className={`status ${alert.severity === 'high' ? 'high' : 'pending'}`}>{alert.severity}</span></td>
                     <td><span className={`status ${alert.status === 'Open' ? 'pending' : 'active'}`}>{alert.status}</span></td>
-                    <td>{alert.created_at ? new Date(alert.created_at).toLocaleString() : '-'}</td>
+                    <td>{formatDateTime(alert.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -229,7 +230,7 @@ const Reports = () => {
                   <tr key={event.id}>
                     <td>{event.action}</td>
                     <td>{(event.user_role || 'system').replace('_', ' ')}</td>
-                    <td>{event.timestamp ? new Date(event.timestamp).toLocaleString() : '-'}</td>
+                    <td>{formatDateTime(event.timestamp)}</td>
                   </tr>
                 ))}
               </tbody>

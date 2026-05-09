@@ -194,7 +194,7 @@ router.post('/apply', authenticateToken, authorizeRoles('client'), async (req, r
             product_type: option.type,
             source_table: 'savings_accounts',
             kyc_status: client.kyc_status || 'Pending',
-            requires_receipt_proof: true,
+            requires_receipt_proof: false,
             related_entity_type: 'savings_account',
             related_entity_id: savingsId
           })

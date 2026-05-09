@@ -4,6 +4,7 @@ import '../admin/AdminPages.css';
 import './ClientPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { formatDateOnly, formatDateTime } from '../../utils/dateTime';
 
 const initialSavingForm = {
   type: 'Passbook Saving',
@@ -65,6 +66,8 @@ const MySavings = () => {
       const formData = new FormData();
       formData.append('file', savingsDocFile);
       formData.append('type', `Savings Request Support - ${saving.id}`);
+      formData.append('related_entity_type', 'savings_account');
+      formData.append('related_entity_id', saving.id);
       await api.uploadDocument(formData);
       success('Supporting document uploaded successfully.');
       setSavingsDocFile(null);
@@ -307,7 +310,7 @@ const MySavings = () => {
         {'saving_type' in receipt && <p><strong>Saving Type:</strong> {receipt.saving_type}</p>}
         {'interest_rate' in receipt && <p><strong>Interest Rate:</strong> {receipt.interest_rate}%</p>}
         <p><strong>Amount:</strong> {Number(receipt.amount || 0).toLocaleString()} ETB</p>
-        <p><strong>Confirmed At:</strong> {new Date(receipt.confirmed_at).toLocaleString()}</p>
+        <p><strong>Confirmed At:</strong> {formatDateTime(receipt.confirmed_at)}</p>
       </div>
     ) : null
   );
@@ -438,11 +441,11 @@ const MySavings = () => {
                 </div>
                 <div className="detail-row">
                   <span className="label">Start Date</span>
-                  <span className="value">{saving.created_at || 'N/A'}</span>
+                  <span className="value">{formatDateTime(saving.created_at, 'N/A')}</span>
                 </div>
                 <div className="detail-row">
                   <span className="label">Maturity Date</span>
-                  <span className="value">{saving.maturity_date || 'Ongoing'}</span>
+                  <span className="value">{formatDateOnly(saving.maturity_date, 'Ongoing')}</span>
                 </div>
               </div>
 
@@ -515,7 +518,7 @@ const MySavings = () => {
                     </span>
                   </td>
                   <td>{Number(txn.amount || 0).toLocaleString()} ETB</td>
-                  <td>{txn.created_at}</td>
+                  <td>{formatDateTime(txn.created_at)}</td>
                   <td>{Number(txn.balance_after || 0).toLocaleString()} ETB</td>
                 </tr>
               ))

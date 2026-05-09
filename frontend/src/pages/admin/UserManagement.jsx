@@ -25,7 +25,9 @@ const UserManagement = () => {
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [secondaryPassword, setSecondaryPassword] = useState('');
   const [showSecondaryAuth, setShowSecondaryAuth] = useState(false);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [shouldArchiveData, setShouldArchiveData] = useState(false);
+  const [archivedUsers, setArchivedUsers] = useState([]);
   
   const [newUser, setNewUser] = useState({
     username: '',
@@ -104,6 +106,17 @@ const UserManagement = () => {
     }
   };
 
+  const fetchArchivedUsers = async () => {
+    try {
+      const data = await api.getArchivedUsers();
+      setArchivedUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching archived users:', err);
+      error(err.message || 'Failed to load archived users');
+      setArchivedUsers([]);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     if (user.role === 'client') {
       return false;
@@ -136,6 +149,10 @@ const UserManagement = () => {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUser.email)) {
       warning('Please enter a valid email address');
+      return;
+    }
+    if (newUser.phone && !/^\d+$/.test(newUser.phone)) {
+      warning('Phone number must contain digits only.');
       return;
     }
 
@@ -197,6 +214,10 @@ const UserManagement = () => {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editUser.email)) {
       warning('Please enter a valid email address');
+      return;
+    }
+    if (editUser.phone && !/^\d+$/.test(editUser.phone)) {
+      warning('Phone number must contain digits only.');
       return;
     }
 
@@ -421,6 +442,15 @@ const UserManagement = () => {
           <Plus size={20} />
           Create User
         </button>
+        <button
+          className="btn-secondary"
+          onClick={async () => {
+            await fetchArchivedUsers();
+            setShowArchivedModal(true);
+          }}
+        >
+          Archived Users
+        </button>
       </div>
 
       {loading ? (
@@ -587,9 +617,10 @@ const UserManagement = () => {
                   <label>Phone</label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={newUser.phone}
-                    onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                    placeholder="Enter phone number"
+                    onChange={(e) => setNewUser({ ...newUser, phone: e.target.value.replace(/\D/g, '') })}
+                    placeholder="Digits only"
                   />
                 </div>
                 <div className="form-group">
@@ -642,6 +673,11 @@ const UserManagement = () => {
                     <li><strong>Client:</strong> View own accounts, make transactions</li>
                   </ul>
                 </div>
+              </div>
+              <div className="info-card" style={{ marginTop: '1rem', background: '#f9fafb' }}>
+                <p style={{ margin: 0 }}>
+                  Better onboarding: fill user profile first, then optional permissions. Phone accepts digits only.
+                </p>
               </div>
 
               {showPermissionStep && (
@@ -772,8 +808,9 @@ const UserManagement = () => {
                   <label>Phone</label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={editUser.phone}
-                    onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })}
+                    onChange={(e) => setEditUser({ ...editUser, phone: e.target.value.replace(/\D/g, '') })}
                   />
                 </div>
                 <div className="form-group">
@@ -825,6 +862,50 @@ const UserManagement = () => {
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchivedModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <h2>Archived Users</h2>
+              <button onClick={() => setShowArchivedModal(false)} className="modal-close">×</button>
+            </div>
+            <div className="modal-body">
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Username</th>
+                      <th>Role</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archivedUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '1rem' }}>No archived users found.</td>
+                      </tr>
+                    ) : archivedUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td>{user.name}</td>
+                        <td>{user.username}</td>
+                        <td>{user.role}</td>
+                        <td>{user.email || '-'}</td>
+                        <td>{user.phone || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setShowArchivedModal(false)}>Close</button>
               </div>
             </div>
           </div>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, FileText, XCircle } from 'lucide-react';
+import { CheckCircle, FileText, RefreshCw, XCircle } from 'lucide-react';
 import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { formatDateTime } from '../../utils/dateTime';
 
 const StatementApprovals = () => {
   const { success, error, warning } = useToast();
@@ -13,8 +14,10 @@ const StatementApprovals = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [justification, setJustification] = useState('');
   const [reason, setReason] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = async () => {
+  const load = async (asRefresh = false) => {
+    if (asRefresh) setRefreshing(true);
     try {
       const data = await api.getPendingStatementApprovals();
       setRows(Array.isArray(data) ? data : []);
@@ -22,6 +25,7 @@ const StatementApprovals = () => {
       error(err.message || 'Failed to load pending statement requests');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -80,6 +84,12 @@ const StatementApprovals = () => {
         <h1>Statement Approval Queue</h1>
         <p>Branch-level checker/approver queue for statement release requests.</p>
       </div>
+      <div className="page-actions">
+        <button className="btn-secondary" onClick={() => load(true)} disabled={refreshing}>
+          <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
+          {refreshing ? 'Refreshing...' : 'Refresh Queue'}
+        </button>
+      </div>
 
       <div className="table-container">
         {loading ? (
@@ -88,7 +98,8 @@ const StatementApprovals = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Request ID</th>
+                <th>Statement ID</th>
+                <th>Approval Request</th>
                 <th>Statement Type</th>
                 <th>Account/Loan ID</th>
                 <th>Status</th>
@@ -99,17 +110,18 @@ const StatementApprovals = () => {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
                     No pending statement requests.
                   </td>
                 </tr>
               ) : rows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.id}</td>
+                  <td>{row.approval_request_id || '-'}</td>
                   <td>{row.statement_type || row.type || 'statement'}</td>
                   <td>{row.account_id || row.loan_id || row.reference_id || '-'}</td>
                   <td><span className="status pending">{row.status || 'Pending'}</span></td>
-                  <td>{row.created_at || '-'}</td>
+                  <td>{formatDateTime(row.created_at)}</td>
                   <td>
                     <button className="btn-icon edit" title="Approve" onClick={() => handleApprove(row)}>
                       <CheckCircle size={18} />

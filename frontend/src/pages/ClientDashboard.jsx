@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import './Dashboard.css';
 import './client/ClientPages.css';
+import { formatDateTime } from '../utils/dateTime';
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString()} ETB`;
 
@@ -291,7 +292,7 @@ const ClientDashboard = () => {
                         <td>{txn.id}</td>
                         <td>{txn.transaction_type}</td>
                         <td>{formatCurrency(txn.amount)}</td>
-                        <td>{txn.created_at}</td>
+                        <td>{formatDateTime(txn.created_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -341,7 +342,7 @@ const ClientDashboard = () => {
                   Close
                 </button>
                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  {balanceInquiryTime ? `Balance inquiry logged at ${balanceInquiryTime.toLocaleString()}` : 'Balance inquiry logged'}
+                  {balanceInquiryTime ? `Balance inquiry logged at ${formatDateTime(balanceInquiryTime)}` : 'Balance inquiry logged'}
                 </p>
               </div>
             </div>

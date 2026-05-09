@@ -125,8 +125,16 @@ const LoanApprovals = () => {
     setShowDocumentsModal(true);
     setLoanDocuments([]);
     setDocumentsLoading(true);
-    api.getDocumentsByLoan(loan.id)
-      .then((docs) => setLoanDocuments(Array.isArray(docs) ? docs : []))
+    Promise.all([
+      api.getDocumentsByLoan(loan.id).catch(() => []),
+      api.getDocumentsByEntity('loan_account', loan.id).catch(() => []),
+      loan?.approval_request_id ? api.getDocumentsByApprovalRequest(loan.approval_request_id).catch(() => []) : Promise.resolve([])
+    ])
+      .then(([byLoan, byEntity, byApproval]) => {
+        const merged = [...(byLoan || []), ...(byEntity || []), ...(byApproval || [])];
+        const deduped = merged.filter((doc, index, arr) => arr.findIndex((item) => item.id === doc.id) === index);
+        setLoanDocuments(deduped);
+      })
       .catch((err) => warning(err?.message || 'Failed to load loan documents'))
       .finally(() => setDocumentsLoading(false));
   };

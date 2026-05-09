@@ -5,7 +5,7 @@ A full-stack web application built with React (frontend) and Express/Node.js (ba
 ## Project Structure
 
 ```
-windsurf-project/
+project/
 ├── backend/          # Express API server
 │   ├── package.json
 │   └── server.js

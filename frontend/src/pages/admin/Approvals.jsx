@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Clock, AlertTriangle, Shield, RefreshCw } from 'l
 import './AdminPages.css';
 import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
+import { formatDateTime } from '../../utils/dateTime';
 
 const Approvals = () => {
   const { success, error, warning } = useToast();
@@ -231,7 +232,7 @@ const Approvals = () => {
                       {getApprovalLevelLabel(approval.approval_level)}
                     </span>
                   </td>
-                  <td>{new Date(approval.created_at).toLocaleString()}</td>
+                  <td>{formatDateTime(approval.created_at)}</td>
                   <td>
                     <button 
                       className="btn-icon edit" 

@@ -34,6 +34,10 @@ const Accounts = () => {
   });
   const [editAccount, setEditAccount] = useState({
     name: '',
+    username: '',
+    email: '',
+    branch_id: '',
+    phone: '',
     role: '',
     status: 'Active'
   });
@@ -150,6 +154,10 @@ const Accounts = () => {
     setSelectedAccount(account);
     setEditAccount({
       name: account.name,
+      username: account.username || '',
+      email: account.email || '',
+      branch_id: account.branch_id || '',
+      phone: account.phone || '',
       role: account.role,
       status: account.status
     });
@@ -157,8 +165,12 @@ const Accounts = () => {
   };
 
   const handleUpdateAccount = async () => {
-    if (!editAccount.name || !editAccount.role) {
-      warning('Name and role are required.');
+    if (!editAccount.name || !editAccount.username || !editAccount.email || !editAccount.role) {
+      warning('Name, username, email, and role are required.');
+      return;
+    }
+    if (editAccount.phone && !/^\d+$/.test(editAccount.phone)) {
+      warning('Phone number must contain digits only.');
       return;
     }
     try {
@@ -166,12 +178,16 @@ const Accounts = () => {
       await api.updateUser(selectedAccount.id, editAccount);
       setShowEditModal(false);
       setSelectedAccount(null);
-      setEditAccount({ name: '', role: '', status: 'Active' });
+      setEditAccount({ name: '', username: '', email: '', branch_id: '', phone: '', role: '', status: 'Active' });
       await fetchAccounts();
       success('Account updated successfully.');
     } catch (err) {
       console.error('Error updating account:', err);
-      showError(`Failed to update account: ${err.message}`);
+      if (String(err.message || '').toLowerCase().includes('conflict')) {
+        showError('Failed to update account: username, email, or phone already exists.');
+      } else {
+        showError(`Failed to update account: ${err.message}`);
+      }
     }
   };
 
@@ -508,6 +524,16 @@ const Accounts = () => {
                 />
               </div>
               <div className="form-group">
+                <label>Username <span className="required">*</span></label>
+                <input
+                  type="text"
+                  value={editAccount.username}
+                  onChange={(e) => setEditAccount({ ...editAccount, username: e.target.value })}
+                  placeholder="Enter username"
+                  required
+                />
+              </div>
+              <div className="form-group">
                 <label>Role <span className="required">*</span></label>
                 <select
                   value={editAccount.role}
@@ -521,6 +547,35 @@ const Accounts = () => {
                   <option value="ceo">CEO</option>
                   <option value="client">Client</option>
                 </select>
+              </div>
+              <div className="form-group">
+                <label>Email <span className="required">*</span></label>
+                <input
+                  type="email"
+                  value={editAccount.email}
+                  onChange={(e) => setEditAccount({ ...editAccount, email: e.target.value })}
+                  placeholder="Enter email"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={editAccount.phone}
+                  onChange={(e) => setEditAccount({ ...editAccount, phone: e.target.value.replace(/\D/g, '') })}
+                  placeholder="Digits only"
+                />
+              </div>
+              <div className="form-group">
+                <label>Branch ID</label>
+                <input
+                  type="text"
+                  value={editAccount.branch_id}
+                  onChange={(e) => setEditAccount({ ...editAccount, branch_id: e.target.value })}
+                  placeholder="Optional branch ID"
+                />
               </div>
               <div className="form-group">
                 <label>Status <span className="required">*</span></label>

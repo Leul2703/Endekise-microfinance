@@ -90,6 +90,13 @@ const maybeCreateApprovalInsteadOfPosting = async ({ type, accountId, amount, de
   return approvalRequestId;
 };
 
+const getSavingsAccountWithClient = async (accountId) => {
+  const account = await runGet('SELECT * FROM savings_accounts WHERE id = ?', [accountId]);
+  if (!account) return { account: null, client: null };
+  const client = await runGet('SELECT * FROM clients WHERE id = ?', [account.client_id]);
+  return { account, client };
+};
+
 router.get('/my-savings', authenticateToken, async (req, res) => {
   try {
     const client = await resolveClientProfileByUser(req.user);
@@ -125,6 +132,73 @@ router.get('/account/:accountId', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Database error:', error);
     res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Recent transaction history for branch manager/admin dashboards
+router.get('/history/recent', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 500);
+  const normalizedType = String(req.query.type || '').trim().toLowerCase();
+  const type = normalizedType && normalizedType !== 'all' ? normalizedType : null;
+  const accountTypeRaw = String(req.query.account_type || '').trim().toLowerCase();
+  const accountType = accountTypeRaw && accountTypeRaw !== 'all' ? accountTypeRaw : null;
+  const queryText = String(req.query.query || '').trim().toLowerCase();
+  const startDate = String(req.query.start_date || '').trim();
+  const endDate = String(req.query.end_date || '').trim();
+
+  try {
+    const whereParts = [];
+    const params = [];
+
+    if (type) {
+      whereParts.push('LOWER(t.transaction_type) = ?');
+      params.push(type);
+    }
+    if (accountType) {
+      whereParts.push('LOWER(t.account_type) = ?');
+      params.push(accountType);
+    }
+    if (startDate) {
+      whereParts.push('t.created_at >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereParts.push('t.created_at <= ?');
+      params.push(endDate);
+    }
+    if (queryText) {
+      whereParts.push(`(
+        LOWER(COALESCE(t.id, '')) LIKE ?
+        OR LOWER(COALESCE(t.account_id, '')) LIKE ?
+        OR LOWER(COALESCE(t.transaction_type, '')) LIKE ?
+        OR LOWER(COALESCE(t.description, '')) LIKE ?
+        OR LOWER(COALESCE(c.name, '')) LIKE ?
+      )`);
+      const likeValue = `%${queryText}%`;
+      params.push(likeValue, likeValue, likeValue, likeValue, likeValue);
+    }
+
+    const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+    const rows = await runAll(
+      `SELECT
+         t.*,
+         s.client_id AS savings_client_id,
+         l.client_id AS loan_client_id,
+         c.name AS client_name
+       FROM transactions t
+       LEFT JOIN savings_accounts s ON t.account_type = 'savings' AND t.account_id = s.id
+       LEFT JOIN loan_accounts l ON t.account_type = 'loan' AND t.account_id = l.id
+       LEFT JOIN clients c ON c.id = COALESCE(s.client_id, l.client_id)
+       ${whereClause}
+       ORDER BY t.created_at DESC, t.id DESC
+       LIMIT ?`,
+      [...params, limit]
+    );
+    return res.json(rows || []);
+  } catch (error) {
+    console.error('Recent transaction history error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -165,6 +239,10 @@ router.post('/deposit', authenticateToken, authorizeRoles('admin', 'branch_manag
 
   try {
     await ensureUserCanTransact(req, account_id);
+    const { account, client } = await getSavingsAccountWithClient(account_id);
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
 
     // Saving Staff is maker-only for savings transactions: always create approval requests.
     const mustGoThroughApproval = req.user.role === 'saving_staff';
@@ -172,14 +250,28 @@ router.post('/deposit', authenticateToken, authorizeRoles('admin', 'branch_manag
       ? await createApprovalRequest('transaction_deposit', account_id, numericAmount, req.user.id, {
         accountId: account_id,
         amount: numericAmount,
-        description
+        description,
+        client_id: account.client_id,
+        client_name: client?.name || `Client-${account.client_id}`,
+        account_type: 'savings',
+        savings_type: account.type,
+        transaction_type: 'deposit',
+        requires_receipt_proof: true
       })
       : await maybeCreateApprovalInsteadOfPosting({
       type: 'transaction_deposit',
       accountId: account_id,
       amount: numericAmount,
       description,
-      userId: req.user.id
+      userId: req.user.id,
+      extraDetails: {
+        client_id: account.client_id,
+        client_name: client?.name || `Client-${account.client_id}`,
+        account_type: 'savings',
+        savings_type: account.type,
+        transaction_type: 'deposit',
+        requires_receipt_proof: true
+      }
     });
     if (approvalRequestId) {
       await recordAuditEvent({
@@ -206,10 +298,6 @@ router.post('/deposit', authenticateToken, authorizeRoles('admin', 'branch_manag
       });
     }
 
-    const account = await runGet('SELECT * FROM savings_accounts WHERE id = ?', [account_id]);
-    if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
-    }
     if (account.status !== 'Active') {
       return res.status(400).json({ error: 'The selected savings account is inactive or invalid.' });
     }
@@ -260,12 +348,12 @@ router.post('/deposit', authenticateToken, authorizeRoles('admin', 'branch_manag
       balance: balanceAfter
     });
 
-    const client = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);
-    if (client?.email) {
+    const clientContact = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);
+    if (clientContact?.email) {
       await sendEmailReminder({
-        to: client.email,
+        to: clientContact.email,
         subject: `Deposit Received - ${account_id}`,
-        text: `Dear ${client.name}, a deposit of ${numericAmount} ETB has been posted to savings account ${account_id}. New balance: ${balanceAfter} ETB.`,
+        text: `Dear ${clientContact.name}, a deposit of ${numericAmount} ETB has been posted to savings account ${account_id}. New balance: ${balanceAfter} ETB.`,
         category: 'deposit_posted'
       });
     }
@@ -383,6 +471,10 @@ router.post('/withdraw', authenticateToken, authorizeRoles('admin', 'branch_mana
 
   try {
     await ensureUserCanTransact(req, account_id);
+    const { account, client } = await getSavingsAccountWithClient(account_id);
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
 
     // Saving Staff is maker-only for savings transactions: always create approval requests.
     const mustGoThroughApproval = req.user.role === 'saving_staff';
@@ -390,14 +482,28 @@ router.post('/withdraw', authenticateToken, authorizeRoles('admin', 'branch_mana
       ? await createApprovalRequest('transaction_withdraw', account_id, numericAmount, req.user.id, {
         accountId: account_id,
         amount: numericAmount,
-        description
+        description,
+        client_id: account.client_id,
+        client_name: client?.name || `Client-${account.client_id}`,
+        account_type: 'savings',
+        savings_type: account.type,
+        transaction_type: 'withdrawal',
+        requires_receipt_proof: false
       })
       : await maybeCreateApprovalInsteadOfPosting({
       type: 'transaction_withdraw',
       accountId: account_id,
       amount: numericAmount,
       description,
-      userId: req.user.id
+      userId: req.user.id,
+      extraDetails: {
+        client_id: account.client_id,
+        client_name: client?.name || `Client-${account.client_id}`,
+        account_type: 'savings',
+        savings_type: account.type,
+        transaction_type: 'withdrawal',
+        requires_receipt_proof: false
+      }
     });
     if (approvalRequestId) {
       await recordAuditEvent({
@@ -424,10 +530,6 @@ router.post('/withdraw', authenticateToken, authorizeRoles('admin', 'branch_mana
       });
     }
 
-    const account = await runGet('SELECT * FROM savings_accounts WHERE id = ?', [account_id]);
-    if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
-    }
     if (account.status !== 'Active') {
       return res.status(400).json({ error: 'The selected savings account is inactive or invalid.' });
     }
@@ -478,12 +580,12 @@ router.post('/withdraw', authenticateToken, authorizeRoles('admin', 'branch_mana
       balance: balanceAfter
     });
 
-    const client = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);
-    if (client?.email) {
+    const clientContact = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);
+    if (clientContact?.email) {
       await sendEmailReminder({
-        to: client.email,
+        to: clientContact.email,
         subject: `Withdrawal Posted - ${account_id}`,
-        text: `Dear ${client.name}, a withdrawal of ${numericAmount} ETB has been posted from savings account ${account_id}. New balance: ${balanceAfter} ETB.`,
+        text: `Dear ${clientContact.name}, a withdrawal of ${numericAmount} ETB has been posted from savings account ${account_id}. New balance: ${balanceAfter} ETB.`,
         category: 'withdrawal_posted'
       });
     }

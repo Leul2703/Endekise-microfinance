@@ -36,6 +36,7 @@ const normalizeApproval = (request) => {
   const clientName = details.client_name || details.client || details.clientName || 'Unassigned';
   const kycStatus = details.kyc_status || 'Pending';
   const requestedType = details.account_type || details.transaction_type || details.type || '-';
+  const savingsType = details.savings_type || details.product_type || '-';
 
   return {
     ...request,
@@ -45,6 +46,7 @@ const normalizeApproval = (request) => {
     clientName,
     kycStatus,
     requestedType,
+    savingsType,
     createdAt: request.created_at || request.createdAt,
     status: request.status || 'Pending',
     requiresCeo: request.approval_level === 'ceo'
@@ -77,6 +79,8 @@ const SavingsApprovals = () => {
     accountCreation: { approved: 0, rejected: 0, total: 0 },
     savingsApproval: { approved: 0, rejected: 0, total: 0 }
   });
+  const [linkedDocuments, setLinkedDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   useEffect(() => {
     fetchPendingApprovals();
@@ -136,6 +140,24 @@ const SavingsApprovals = () => {
 
   const handleViewDetails = (approval) => {
     setSelectedApproval(approval);
+    const shouldLoadDocuments = approval.type === 'transaction_deposit' || approval.type === 'account_creation';
+    if (!shouldLoadDocuments) {
+      setLinkedDocuments([]);
+      setDocumentsLoading(false);
+      setShowDetailsModal(true);
+      return;
+    }
+    setDocumentsLoading(true);
+    Promise.all([
+      api.getDocumentsByApprovalRequest(approval.id).catch(() => []),
+      approval?.entity_id ? api.getDocumentsBySavings(approval.entity_id).catch(() => []) : Promise.resolve([])
+    ])
+      .then(([byApproval, bySavings]) => {
+        const merged = [...(byApproval || []), ...(bySavings || [])];
+        const deduped = merged.filter((doc, index, arr) => arr.findIndex((item) => item.id === doc.id) === index);
+        setLinkedDocuments(deduped);
+      })
+      .finally(() => setDocumentsLoading(false));
     setShowDetailsModal(true);
   };
 
@@ -462,6 +484,10 @@ const SavingsApprovals = () => {
                 <p>{selectedApproval.entity_id}</p>
               </div>
               <div className="form-group">
+                <label>Savings Type</label>
+                <p>{selectedApproval.savingsType || '-'}</p>
+              </div>
+              <div className="form-group">
                 <label>KYC Status</label>
                 <span className={`status ${getStatusTone(selectedApproval.kycStatus)}`}>
                   {selectedApproval.kycStatus}
@@ -485,7 +511,7 @@ const SavingsApprovals = () => {
                   {JSON.stringify(selectedApproval.details, null, 2)}
                 </pre>
               </div>
-              {selectedApproval.details?.requires_receipt_proof && (
+              {selectedApproval.type === 'transaction_deposit' && selectedApproval.details?.requires_receipt_proof && (
                 <div className="form-group">
                   <label>Receipt Proof</label>
                   {selectedApproval.details?.receipt_document_id ? (
@@ -501,6 +527,31 @@ const SavingsApprovals = () => {
                   ) : (
                     <div className="info-card" style={{ margin: 0, borderColor: '#fca5a5', background: '#fef2f2' }}>
                       Missing receipt proof. Maker must attach the receipt before approval.
+                    </div>
+                  )}
+                </div>
+              )}
+              {selectedApproval.type !== 'transaction_withdraw' && (
+                <div className="form-group">
+                  <label>Attached Documents</label>
+                  {documentsLoading ? (
+                    <p>Loading documents...</p>
+                  ) : linkedDocuments.length === 0 ? (
+                    <p style={{ color: '#6b7280' }}>No linked documents found.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {linkedDocuments.map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleDownloadReceipt(doc.id)}
+                          style={{ justifyContent: 'space-between', display: 'flex' }}
+                        >
+                          <span>{doc.type || 'Document'} - {doc.file_name}</span>
+                          <span>Download</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>

@@ -47,6 +47,7 @@ const Layout = () => {
       { icon: DollarSign, labelKey: 'nav_loan_approvals', path: '/branch-manager/loans' },
       { icon: FileText, labelKey: 'nav_savings_approvals', path: '/branch-manager/savings' },
       { icon: FileText, labelKey: 'nav_statement_approvals', path: '/branch-manager/statements' },
+      { icon: DollarSign, labelKey: 'nav_transaction_history', path: '/branch-manager/transactions' },
     ],
     loan_staff: [
       { icon: LayoutDashboard, labelKey: 'nav_dashboard', path: '/loan-staff' },

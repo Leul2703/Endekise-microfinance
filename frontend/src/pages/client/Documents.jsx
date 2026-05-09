@@ -4,6 +4,7 @@ import '../../pages/admin/AdminPages.css';
 import './ClientPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { formatDateTime } from '../../utils/dateTime';
 
 const Documents = () => {
   const { success, error, warning } = useToast();
@@ -142,7 +143,7 @@ const Documents = () => {
                 <td>{doc.id}</td>
                 <td>{doc.document_type || doc.type || '-'}</td>
                 <td>{doc.status || 'Pending'}</td>
-                <td>{doc.created_at || '-'}</td>
+                <td>{formatDateTime(doc.created_at)}</td>
               </tr>
             ))}
           </tbody>

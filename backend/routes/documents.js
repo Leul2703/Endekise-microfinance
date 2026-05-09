@@ -543,13 +543,57 @@ router.get('/client/:clientId', authenticateToken, (req, res) => {
 router.get('/loan/:loanId', authenticateToken, (req, res) => {
   const { loanId } = req.params;
 
-  db.all('SELECT * FROM documents WHERE loan_id = ? ORDER BY uploaded_at DESC', [loanId], (err, documents) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Database error' });
+  db.all(
+    `SELECT * FROM documents
+     WHERE loan_id = ?
+        OR (related_entity_type = 'loan_account' AND related_entity_id = ?)
+        OR (related_entity_type = 'loan' AND related_entity_id = ?)
+     ORDER BY uploaded_at DESC`,
+    [loanId, loanId, loanId],
+    (err, documents) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(documents);
     }
-    res.json(documents);
-  });
+  );
+});
+
+// Get documents by savings account
+router.get('/savings/:savingsId', authenticateToken, (req, res) => {
+  const { savingsId } = req.params;
+
+  db.all(
+    `SELECT * FROM documents
+     WHERE (related_entity_type = 'savings_account' AND related_entity_id = ?)
+        OR (related_entity_type = 'savings' AND related_entity_id = ?)
+     ORDER BY uploaded_at DESC`,
+    [savingsId, savingsId],
+    (err, documents) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(documents);
+    }
+  );
+});
+
+// Get documents by related entity
+router.get('/entity/:entityType/:entityId', authenticateToken, (req, res) => {
+  const { entityType, entityId } = req.params;
+  db.all(
+    'SELECT * FROM documents WHERE related_entity_type = ? AND related_entity_id = ? ORDER BY uploaded_at DESC',
+    [entityType, entityId],
+    (err, documents) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(documents || []);
+    }
+  );
 });
 
 module.exports = router;

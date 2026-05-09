@@ -6,6 +6,23 @@ const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { buildCompanyId } = require('../utils/companyId');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
 
+const normalizePhoneNumber = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return raw.replace(/\D/g, '');
+};
+
+const resolveEffectiveBranchId = async (inputBranchId) => {
+  const normalized = String(inputBranchId || '').trim();
+  if (normalized) {
+    return normalized;
+  }
+  const fallbackBranch = await new Promise((resolve, reject) => {
+    db.get('SELECT id FROM branches ORDER BY id ASC LIMIT 1', [], (err, row) => (err ? reject(err) : resolve(row || null)));
+  });
+  return fallbackBranch?.id || null;
+};
+
 const logUserAdminAudit = (action, entityId, adminUser, details) => {
   return new Promise((resolve, reject) => {
     db.run(
@@ -36,6 +53,24 @@ router.get('/', authenticateToken, authorizeRoles('admin', 'ceo'), (req, res) =>
     }
     res.json(users);
   });
+});
+
+// Get archived users with archive metadata
+router.get('/archived', authenticateToken, authorizeRoles('admin', 'ceo'), (req, res) => {
+  db.all(
+    `SELECT id, name, username, email, role, branch_id, phone, status, created_at as created
+     FROM users
+     WHERE status = 'Archived'
+     ORDER BY created_at DESC`,
+    [],
+    (err, users) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(users || []);
+    }
+  );
 });
 
 // Get available special permissions
@@ -119,9 +154,12 @@ router.post('/', authenticateToken, authorizeRoles('admin'), async (req, res) =>
   }
 
   try {
-    const normalizedPhone = phone ? String(phone).trim() : '';
+    const normalizedPhone = normalizePhoneNumber(phone);
     const normalizedEmail = email ? String(email).trim().toLowerCase() : '';
     const normalizedName = String(full_name || name || username).trim();
+    if (phone && !normalizedPhone) {
+      return res.status(400).json({ error: 'Phone number must contain digits only.' });
+    }
 
     const duplicate = await new Promise((resolve, reject) => {
       db.get(
@@ -156,12 +194,14 @@ router.post('/', authenticateToken, authorizeRoles('admin'), async (req, res) =>
       });
     }
 
+    const effectiveBranchId = await resolveEffectiveBranchId(branch_id);
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     db.run(
       'INSERT INTO users (name, username, email, password, role, branch_id, phone) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [normalizedName, String(username).trim(), normalizedEmail || null, hashedPassword, role, branch_id || null, normalizedPhone || null],
+      [normalizedName, String(username).trim(), normalizedEmail || null, hashedPassword, role, effectiveBranchId, normalizedPhone || null],
       function(err) {
         if (err) {
           console.error('Database error:', err);
@@ -213,47 +253,97 @@ router.put('/:id', authenticateToken, authorizeRoles('admin'), (req, res) => {
 
   console.log('[UPDATE USER] ID:', id, 'Body:', req.body);
 
-  db.run(
-    'UPDATE users SET name = ?, username = ?, email = ?, role = ?, status = ?, branch_id = ?, phone = ? WHERE id = ?',
-    [full_name || name || username, username, email || null, role, status, branch_id || null, phone || null, id],
-    function(err) {
-      if (err) {
-        console.error('Database error updating user:', err);
-        const msg = (err && err.message) ? String(err.message) : 'Database error';
-        if (msg.toLowerCase().includes('unique') || msg.toLowerCase().includes('constraint')) {
-          return res.status(409).json({ error: 'Conflict', details: msg });
-        }
-        if (msg.toLowerCase().includes('foreign key') || msg.toLowerCase().includes('foreign')) {
-          return res.status(400).json({ error: 'Invalid reference', details: msg });
-        }
-        return res.status(500).json({ error: 'Database error', details: msg });
-      }
+  const normalizedPhone = normalizePhoneNumber(phone);
+  if (phone && !normalizedPhone) {
+    return res.status(400).json({ error: 'Phone number must contain digits only.' });
+  }
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : '';
+  const normalizedUsername = String(username || '').trim();
+  const normalizedName = String(full_name || name || normalizedUsername).trim();
 
-      console.log(`[UPDATE USER] Updated ${this.changes} row(s)`);
+  if (!normalizedUsername || normalizedUsername.length < 3 || /\s/.test(normalizedUsername)) {
+    return res.status(400).json({ error: 'Username must be at least 3 characters and must not include spaces' });
+  }
+  if (!normalizedEmail) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
 
-      db.get('SELECT id, name, username, email, role, branch_id, phone, status, created_at as created FROM users WHERE id = ?', [id], (err, user) => {
-        if (err) {
+  db.get('SELECT id, username, email, phone FROM users WHERE id = ?', [id], (loadErr, currentUser) => {
+    if (loadErr) {
+      console.error('Database error loading user for update:', loadErr);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    db.get(
+      `SELECT id, username, email, phone FROM users
+       WHERE id != ?
+         AND (username = ?
+           OR lower(email) = ?
+           OR (? != '' AND phone = ?))`,
+      [id, normalizedUsername, normalizedEmail, normalizedPhone, normalizedPhone],
+      (dupErr, duplicate) => {
+        if (dupErr) {
+          console.error('Database error checking duplicate user:', dupErr);
           return res.status(500).json({ error: 'Database error' });
         }
-        console.log('[UPDATE USER] Result:', user);
-        logUserAdminAudit('USER_UPDATED', id, req.user, {
-          updated_user: user?.username,
-          name: full_name || name,
-          email,
-          role,
-          status,
-          branch_id,
-          phone
-        })
-          .catch((auditError) => {
-            console.error('User update audit log error:', auditError);
-          })
-          .finally(() => {
-            res.json(user);
+        if (duplicate) {
+          return res.status(409).json({
+            error: 'Conflict',
+            details: 'Username, email, or phone already exists for another account.'
           });
-      });
-    }
-  );
+        }
+
+        resolveEffectiveBranchId(branch_id)
+          .then((effectiveBranchId) => {
+            db.run(
+              'UPDATE users SET name = ?, username = ?, email = ?, role = ?, status = ?, branch_id = ?, phone = ? WHERE id = ?',
+              [normalizedName, normalizedUsername, normalizedEmail, role, status, effectiveBranchId, normalizedPhone || null, id],
+              function(err) {
+                if (err) {
+                  console.error('Database error updating user:', err);
+                  const msg = (err && err.message) ? String(err.message) : 'Database error';
+                  if (msg.toLowerCase().includes('unique') || msg.toLowerCase().includes('constraint')) {
+                    return res.status(409).json({ error: 'Conflict', details: msg });
+                  }
+                  if (msg.toLowerCase().includes('foreign key') || msg.toLowerCase().includes('foreign')) {
+                    return res.status(400).json({ error: 'Invalid reference', details: msg });
+                  }
+                  return res.status(500).json({ error: 'Database error', details: msg });
+                }
+
+                db.get('SELECT id, name, username, email, role, branch_id, phone, status, created_at as created FROM users WHERE id = ?', [id], (err, user) => {
+                  if (err) {
+                    return res.status(500).json({ error: 'Database error' });
+                  }
+                  logUserAdminAudit('USER_UPDATED', id, req.user, {
+                    updated_user: user?.username,
+                    name: normalizedName,
+                    email: normalizedEmail,
+                    role,
+                    status,
+                    branch_id: effectiveBranchId,
+                    phone: normalizedPhone
+                  })
+                    .catch((auditError) => {
+                      console.error('User update audit log error:', auditError);
+                    })
+                    .finally(() => {
+                      res.json(user);
+                    });
+                });
+              }
+            );
+          })
+          .catch((branchError) => {
+            console.error('Failed to resolve branch id for update:', branchError);
+            return res.status(500).json({ error: 'Database error' });
+          });
+      }
+    );
+  });
 });
 
 // Archive user (admin only) - Sets status to 'Archived'

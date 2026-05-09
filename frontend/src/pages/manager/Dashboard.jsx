@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Clock, DollarSign, TrendingUp, AlertTriangle, Fil
 import '../../pages/admin/AdminPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { formatDateTime } from '../../utils/dateTime';
 
 const ManagerDashboard = () => {
   const navigate = useNavigate();
@@ -204,7 +205,7 @@ const ManagerDashboard = () => {
                         <p className="approval-details">
                           {approval.amount ? `${parseFloat(approval.amount).toLocaleString()} ETB` : '-'} • {approval.approval_level}
                         </p>
-                        <p className="approval-time">{approval.time_ago || new Date(approval.created_at).toLocaleString()}</p>
+                        <p className="approval-time">{approval.time_ago || formatDateTime(approval.created_at)}</p>
                       </div>
                       <div className="approval-actions">
                         <button className="btn-icon edit" title="Approve">

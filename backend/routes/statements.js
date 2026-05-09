@@ -3,11 +3,53 @@ const router = express.Router();
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { db } = require('../config/database');
 const PDFDocument = require('pdfkit');
+const { withTransaction } = require('../utils/transactionWrapper');
+const { resolveClientProfileByUser } = require('../utils/clientProfile');
+
+const COMPANY_NAME = process.env.STATEMENT_COMPANY_NAME || 'Edekise Microfinance';
+const COMPANY_TAGLINE = process.env.STATEMENT_COMPANY_TAGLINE || 'Official Account Statement';
+const BRAND_COLOR = '#0f766e';
+
+const formatDateTime = (value) => {
+  if (!value) return 'N/A';
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return String(value);
+  return d.toLocaleString('en-GB', { hour12: false });
+};
+
+const formatDateOnly = (value) => {
+  if (!value) return 'N/A';
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return String(value);
+  return d.toLocaleDateString('en-GB');
+};
+
+const formatMoney = (value) => `${Number(value || 0).toLocaleString()} ETB`;
+
+const drawStatementBrandHeader = (doc) => {
+  const top = doc.y;
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+
+  doc.save();
+  doc.fillColor(BRAND_COLOR).circle(left + 12, top + 12, 11).fill();
+  doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold').text('EM', left + 6.5, top + 8);
+  doc.restore();
+
+  doc.font('Helvetica-Bold').fontSize(16).fillColor('#111827').text(COMPANY_NAME, left + 30, top + 1, { width: right - left - 140 });
+  doc.font('Helvetica').fontSize(9).fillColor('#4b5563').text(COMPANY_TAGLINE, left + 30, top + 20, { width: right - left - 140 });
+  doc.font('Helvetica').fontSize(8).fillColor('#6b7280').text(`Generated: ${formatDateTime(new Date().toISOString())}`, right - 135, top + 4, { width: 135, align: 'right' });
+
+  doc.moveDown(1.4);
+  doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(left, doc.y).lineTo(right, doc.y).stroke();
+  doc.moveDown(0.6);
+};
 
 const buildStatementPdf = ({ title, subtitleLines = [], summaryLines = [], transactions = [] }) => {
   const doc = new PDFDocument({ size: 'A4', margin: 48 });
 
-  doc.fontSize(18).text(title, { align: 'left' });
+  drawStatementBrandHeader(doc);
+  doc.fontSize(18).font('Helvetica-Bold').fillColor('#111827').text(title, { align: 'left' });
   doc.moveDown(0.25);
   doc.fontSize(10).fillColor('#444');
   for (const line of subtitleLines) {
@@ -39,7 +81,7 @@ const buildStatementPdf = ({ title, subtitleLines = [], summaryLines = [], trans
 
   const rows = (transactions || []).slice(0, 200);
   for (const t of rows) {
-    const date = String(t.created_at || '').slice(0, 10);
+    const date = formatDateTime(t.created_at);
     const type = String(t.transaction_type || '');
     const amount = Number(t.amount || 0).toFixed(2);
     const balAfter = t.balance_after === null || t.balance_after === undefined ? '' : Number(t.balance_after).toFixed(2);
@@ -53,7 +95,7 @@ const buildStatementPdf = ({ title, subtitleLines = [], summaryLines = [], trans
   }
 
   doc.moveDown(1);
-  doc.fontSize(8).fillColor('#666').text(`Generated at ${new Date().toISOString()}`);
+  doc.fontSize(8).fillColor('#666').text(`Generated at ${formatDateTime(new Date().toISOString())}`);
   doc.fillColor('#000');
 
   return doc;
@@ -88,6 +130,23 @@ const transactionsToCsv = (transactions = []) => {
   }
   return `${lines.join('\r\n')}\r\n`;
 };
+
+const safeParseJson = (value, fallback = null) => {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return fallback;
+  }
+};
+
+const getById = (sql, params = []) => new Promise((resolve, reject) => {
+  db.get(sql, params, (err, row) => {
+    if (err) reject(err);
+    else resolve(row || null);
+  });
+});
 
 // Generate loan statement
 router.get('/loan/:loanId', authenticateToken, (req, res) => {
@@ -323,6 +382,92 @@ router.get('/savings/:accountId/download', authenticateToken, (req, res) => {
   });
 });
 
+router.get('/transaction/:transactionId/download', authenticateToken, async (req, res) => {
+  const { transactionId } = req.params;
+  const format = String(req.query.format || 'pdf').toLowerCase();
+
+  try {
+    const transaction = await getById(
+      `SELECT
+        t.*,
+        s.client_id AS savings_client_id,
+        l.client_id AS loan_client_id,
+        s.type AS savings_type,
+        l.type AS loan_type,
+        c.id AS client_id,
+        c.name AS client_name
+      FROM transactions t
+      LEFT JOIN savings_accounts s ON t.account_type = 'savings' AND t.account_id = s.id
+      LEFT JOIN loan_accounts l ON t.account_type = 'loan' AND t.account_id = l.id
+      LEFT JOIN clients c ON c.id = COALESCE(s.client_id, l.client_id)
+      WHERE t.id = ?`,
+      [transactionId]
+    );
+
+    if (!transaction) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    if (req.user.role === 'client') {
+      const client = await resolveClientProfileByUser(req.user);
+      const txnClientId = transaction.client_id || transaction.savings_client_id || transaction.loan_client_id;
+      if (!client || String(client.id) !== String(txnClientId)) {
+        return res.status(403).json({ error: 'You can only download statements for your own transactions.' });
+      }
+    }
+
+    if (format === 'csv') {
+      const csv = transactionsToCsv([transaction]);
+      const filename = `transaction_statement_${transactionId}_${new Date().toISOString().slice(0, 10)}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(csv);
+    }
+
+    if (format !== 'pdf') {
+      return res.status(415).json({ error: 'Unsupported format. Use ?format=pdf or ?format=csv' });
+    }
+
+    const filename = `transaction_statement_${transactionId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+
+    const productLabel = transaction.account_type === 'loan'
+      ? (transaction.loan_type || 'Loan')
+      : (transaction.savings_type || 'Savings');
+
+    const doc = buildStatementPdf({
+      title: 'Transaction Statement',
+      subtitleLines: [
+        `Transaction ID: ${transaction.id}`,
+        `Client: ${transaction.client_name || 'N/A'}`,
+        `Account: ${transaction.account_id || 'N/A'} (${transaction.account_type || 'N/A'})`,
+        `Product: ${productLabel}`,
+        `Recorded at: ${formatDateTime(transaction.created_at)}`
+      ],
+      summaryLines: [
+        `Type: ${transaction.transaction_type || 'N/A'}`,
+        `Amount: ${formatMoney(transaction.amount)}`,
+        `Balance before: ${formatMoney(transaction.balance_before)}`,
+        `Balance after: ${formatMoney(transaction.balance_after)}`,
+        `Description: ${transaction.description || 'N/A'}`,
+        `Reference: ${transaction.transaction_reference || 'N/A'}`,
+        `Statement date: ${formatDateOnly(new Date().toISOString())}`
+      ],
+      transactions: [transaction]
+    });
+
+    doc.pipe(res);
+    doc.end();
+    return null;
+  } catch (error) {
+    console.error('Error generating transaction statement:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Request loan statement (UC-L-004)
 router.post('/loan/request', authenticateToken, async (req, res) => {
   const {
@@ -431,30 +576,30 @@ router.post('/loan/request', authenticateToken, async (req, res) => {
       generated_at: new Date().toISOString()
     };
 
-    // Create statement record in pending state
     const statementId = `STMT-${Date.now()}`;
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO statements (id, type, client_id, account_id, start_date, end_date, statement_data, status, requested_by, extended_range_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [statementId, 'loan', resolvedClientId, resolvedLoanId, resolvedStartDate, resolvedEndDate, JSON.stringify(statementData), 'Pending', userId, extendedRangeFlag],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-
-    // Submit to approval queue
     const requestId = `APR-STMT-${Date.now()}`;
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO approval_requests (id, type, entity_id, requested_by, status, justification) VALUES (?, ?, ?, ?, ?, ?)',
-        [requestId, 'statement_approval', statementId, userId, 'Pending', largeRangeWarning || 'Statement awaiting manager approval'],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+    await withTransaction(async () => {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO statements (id, type, client_id, account_id, start_date, end_date, statement_data, status, requested_by, extended_range_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [statementId, 'loan', resolvedClientId, resolvedLoanId, resolvedStartDate, resolvedEndDate, JSON.stringify(statementData), 'Pending', userId, extendedRangeFlag],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO approval_requests (id, type, entity_id, requested_by, status, justification) VALUES (?, ?, ?, ?, ?, ?)',
+          [requestId, 'statement_approval', statementId, userId, 'Pending', largeRangeWarning || 'Statement awaiting manager approval'],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
     });
 
     console.log(`[AUDIT] Loan statement requested: ${statementId} for loan ${resolvedLoanId} by user ${userId} at ${new Date().toISOString()}`);
@@ -553,30 +698,30 @@ router.post('/savings/request', authenticateToken, async (req, res) => {
       generated_at: new Date().toISOString()
     };
 
-    // Create statement record in pending state
     const statementId = `STMT-${Date.now()}`;
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO statements (id, type, client_id, account_id, start_date, end_date, statement_data, status, requested_by, extended_range_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [statementId, 'savings', client_id, savings_id, start_date, end_date, JSON.stringify(statementData), 'Pending', userId, extendedRangeFlag],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-
-    // Submit to approval queue
     const requestId = `APR-STMT-${Date.now()}`;
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO approval_requests (id, type, entity_id, requested_by, status, justification) VALUES (?, ?, ?, ?, ?, ?)',
-        [requestId, 'statement_approval', statementId, userId, 'Pending', largeRangeWarning || 'Statement awaiting manager approval'],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+    await withTransaction(async () => {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO statements (id, type, client_id, account_id, start_date, end_date, statement_data, status, requested_by, extended_range_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [statementId, 'savings', client_id, savings_id, start_date, end_date, JSON.stringify(statementData), 'Pending', userId, extendedRangeFlag],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO approval_requests (id, type, entity_id, requested_by, status, justification) VALUES (?, ?, ?, ?, ?, ?)',
+          [requestId, 'statement_approval', statementId, userId, 'Pending', largeRangeWarning || 'Statement awaiting manager approval'],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
     });
 
     console.log(`[AUDIT] Savings statement requested: ${statementId} for savings ${savings_id} by user ${userId} at ${new Date().toISOString()}`);
@@ -596,7 +741,7 @@ router.post('/savings/request', authenticateToken, async (req, res) => {
 });
 
 // Get pending statement approvals
-router.get('/approvals/pending', authenticateToken, async (req, res) => {
+router.get('/approvals/pending', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
   try {
     const statements = await new Promise((resolve, reject) => {
       db.all(
@@ -632,7 +777,7 @@ router.get('/approvals/pending', authenticateToken, async (req, res) => {
 
       return {
         ...stmt,
-        statement_data: stmt.statement_data ? JSON.parse(stmt.statement_data) : null,
+        statement_data: safeParseJson(stmt.statement_data, null),
         client,
         requester
       };
@@ -646,7 +791,7 @@ router.get('/approvals/pending', authenticateToken, async (req, res) => {
 });
 
 // Approve statement
-router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 'admin'), async (req, res) => {
+router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
   const { id } = req.params;
   const { justification } = req.body;
   const userId = req.user.id;
@@ -669,27 +814,29 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 
       return res.status(400).json({ error: 'Statement can only be approved when Pending' });
     }
 
-    await new Promise((resolve, reject) => {
-      db.run("UPDATE statements SET status = 'Approved' WHERE id = ?", [id], function(err) {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE approval_requests
-         SET status = 'Approved',
-             justification = ?,
-             reviewed_at = CURRENT_TIMESTAMP,
-             reviewed_by = ?
-         WHERE entity_id = ? AND type = 'statement_approval' AND status = 'Pending'`,
-        [justification, userId, id],
-        function onUpdate(err) {
+    await withTransaction(async () => {
+      await new Promise((resolve, reject) => {
+        db.run("UPDATE statements SET status = 'Approved' WHERE id = ?", [id], function(err) {
           if (err) reject(err);
           else resolve();
-        }
-      );
+        });
+      });
+
+      await new Promise((resolve, reject) => {
+        db.run(
+          `UPDATE approval_requests
+           SET status = 'Approved',
+               justification = ?,
+               reviewed_at = CURRENT_TIMESTAMP,
+               reviewed_by = ?
+           WHERE entity_id = ? AND type = 'statement_approval' AND status = 'Pending'`,
+          [justification, userId, id],
+          function onUpdate(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
     });
 
     console.log(`[AUDIT] Statement ${id} approved by user ${userId} at ${new Date().toISOString()}`);
@@ -701,7 +848,7 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 
 });
 
 // Authorize loan statement (UC-M-001)
-router.post('/:id/authorize', authenticateToken, authorizeRoles('branch_manager', 'admin'), async (req, res) => {
+router.post('/:id/authorize', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
@@ -722,28 +869,28 @@ router.post('/:id/authorize', authenticateToken, authorizeRoles('branch_manager'
       return res.status(400).json({ error: 'Statement can only be authorized when in Approved or Pending status' });
     }
 
-    // Update statement status to Finalized
-    await new Promise((resolve, reject) => {
-      db.run(
-        "UPDATE statements SET status = 'Finalized' WHERE id = ?",
-        [id],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    await withTransaction(async () => {
+      await new Promise((resolve, reject) => {
+        db.run(
+          "UPDATE statements SET status = 'Finalized' WHERE id = ?",
+          [id],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
 
-    // Update approval request status
-    await new Promise((resolve, reject) => {
-      db.run(
-        "UPDATE approval_requests SET status = 'Approved' WHERE entity_id = ? AND type = 'statement_approval'",
-        [id],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+      await new Promise((resolve, reject) => {
+        db.run(
+          "UPDATE approval_requests SET status = 'Approved' WHERE entity_id = ? AND type = 'statement_approval'",
+          [id],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
     });
 
     console.log(`[AUDIT] Statement ${id} authorized by user ${userId} at ${new Date().toISOString()}`);
@@ -761,7 +908,7 @@ router.post('/:id/authorize', authenticateToken, authorizeRoles('branch_manager'
 });
 
 // Reject and reroute statement (UC-M-001)
-router.post('/:id/reject', authenticateToken, authorizeRoles('branch_manager', 'admin'), async (req, res) => {
+router.post('/:id/reject', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const userId = req.user.id;
@@ -787,28 +934,28 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('branch_manager', '
       return res.status(404).json({ error: 'Statement not found' });
     }
 
-    // Update statement status to Rejected
-    await new Promise((resolve, reject) => {
-      db.run(
-        "UPDATE statements SET status = 'Rejected' WHERE id = ?",
-        [id],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    await withTransaction(async () => {
+      await new Promise((resolve, reject) => {
+        db.run(
+          "UPDATE statements SET status = 'Rejected' WHERE id = ?",
+          [id],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
 
-    // Update approval request with rejection reason
-    await new Promise((resolve, reject) => {
-      db.run(
-        "UPDATE approval_requests SET status = 'Rejected', justification = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE entity_id = ? AND type = 'statement_approval'",
-        [reason, userId, id],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
+      await new Promise((resolve, reject) => {
+        db.run(
+          "UPDATE approval_requests SET status = 'Rejected', justification = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE entity_id = ? AND type = 'statement_approval'",
+          [reason, userId, id],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
     });
 
     console.log(`[AUDIT] Statement ${id} rejected by user ${userId} with reason: ${reason} at ${new Date().toISOString()}`);

@@ -206,6 +206,12 @@ const schemaStatements = [
     two_factor_enabled INTEGER DEFAULT 0,
     reset_token TEXT,
     reset_token_expiry TIMESTAMP,
+    branch_id INTEGER,
+    phone TEXT,
+    session_id TEXT,
+    last_login TIMESTAMP,
+    last_seen TIMESTAMP,
+    company_id TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS clients (
@@ -483,6 +489,17 @@ const schemaStatements = [
     tracking_id TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id TEXT,
+    read_status INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 
 const indexStatements = [
@@ -634,6 +651,12 @@ const initializeDatabase = async () => {
   await ensureColumnExists('users', 'reset_token_expiry', 'TIMESTAMP');
   await ensureColumnExists('users', 'two_factor_secret', 'TEXT');
   await ensureColumnExists('users', 'two_factor_enabled', 'INTEGER DEFAULT 0');
+  await ensureColumnExists('users', 'branch_id', 'INTEGER');
+  await ensureColumnExists('users', 'phone', 'TEXT');
+  await ensureColumnExists('users', 'session_id', 'TEXT');
+  await ensureColumnExists('users', 'last_login', 'TIMESTAMP');
+  await ensureColumnExists('users', 'last_seen', 'TIMESTAMP');
+  await ensureColumnExists('users', 'company_id', 'TEXT');
   await ensureColumnExists('branches', 'credit_limit', 'NUMERIC(15, 2) DEFAULT 0');
   await ensureColumnExists('clients', 'branch_id', 'INTEGER REFERENCES branches(id)');
   await ensureColumnExists('loan_accounts', 'branch_id', 'INTEGER REFERENCES branches(id)');

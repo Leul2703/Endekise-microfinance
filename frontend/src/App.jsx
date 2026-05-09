@@ -27,6 +27,7 @@ import UnlockRequests from './pages/admin/UnlockRequests';
 import LoanApprovals from './pages/branch-manager/LoanApprovals';
 import SavingsApprovals from './pages/branch-manager/SavingsApprovals';
 import StatementApprovals from './pages/branch-manager/StatementApprovals';
+import TransactionHistory from './pages/branch-manager/TransactionHistory';
 
 // Loan Staff pages
 import LoanManagement from './pages/loan-staff/LoanManagement';
@@ -90,6 +91,7 @@ function App() {
               <Route path="loans" element={<LoanApprovals />} />
               <Route path="savings" element={<SavingsApprovals />} />
               <Route path="statements" element={<StatementApprovals />} />
+              <Route path="transactions" element={<TransactionHistory />} />
             </Route>
 
             <Route

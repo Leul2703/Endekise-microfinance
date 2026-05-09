@@ -91,6 +91,14 @@ const runAll = (sql, params = []) => new Promise((resolve, reject) => {
   db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows || [])));
 });
 
+const safeRecordAudit = async (payload, contextLabel) => {
+  try {
+    await recordAuditEvent(payload);
+  } catch (error) {
+    console.warn(`Audit logging failed (${contextLabel}):`, error?.message || error);
+  }
+};
+
 const findLinkedDocuments = async (request) => {
   if (!request?.id) return [];
   const details = parseRequestDetails(request);
@@ -123,7 +131,7 @@ const preflightApprovalRequirements = async (request) => {
   }
 
   // Enforce receipt proof for workflows that depend on external evidence.
-  const typesRequiringProof = new Set(['account_creation', 'transaction_deposit']);
+  const typesRequiringProof = new Set(['transaction_deposit']);
   if (!typesRequiringProof.has(request.type)) {
     return;
   }
@@ -156,12 +164,43 @@ router.get('/pending', authenticateToken, authorizeRoles('branch_manager', 'ceo'
     LEFT JOIN users u ON ar.requested_by = u.id 
     WHERE ${whereClause}
     ORDER BY ar.created_at DESC
-  `, params, (err, requests) => {
+  `, params, async (err, requests) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Database error' });
     }
-    res.json(requests);
+    try {
+      const enriched = await Promise.all((requests || []).map(async (request) => {
+        if (!['transaction_deposit', 'transaction_withdraw'].includes(request.type)) {
+          return request;
+        }
+        const details = parseRequestDetails(request);
+        if (details.client_name && details.savings_type) {
+          return request;
+        }
+        const account = await runGet('SELECT id, client_id, type FROM savings_accounts WHERE id = ?', [request.entity_id]);
+        if (!account) {
+          return request;
+        }
+        const client = await runGet('SELECT id, name FROM clients WHERE id = ?', [account.client_id]);
+        const mergedDetails = {
+          ...details,
+          client_id: details.client_id || account.client_id,
+          client_name: details.client_name || client?.name || `Client-${account.client_id}`,
+          account_type: details.account_type || 'savings',
+          savings_type: details.savings_type || account.type,
+          transaction_type: details.transaction_type || (request.type === 'transaction_withdraw' ? 'withdrawal' : 'deposit')
+        };
+        return {
+          ...request,
+          details: JSON.stringify(mergedDetails)
+        };
+      }));
+      res.json(enriched);
+    } catch (enrichError) {
+      console.error('Pending approval enrichment error:', enrichError);
+      res.json(requests);
+    }
   });
 });
 
@@ -229,27 +268,29 @@ router.get('/history', authenticateToken, authorizeRoles('branch_manager', 'admi
   );
 });
 
-// Approve request (atomic): update approval + execute action inside DB transaction
+// Approve request
 router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 'ceo', 'admin'), (req, res) => {
   const { id } = req.params;
   const { justification } = req.body;
   const userId = req.user.id;
   const userRole = req.user.role;
 
+  // Get approval request details
   db.get('SELECT * FROM approval_requests WHERE id = ?', [id], async (err, request) => {
     if (err) {
-      console.error('Database error fetching approval request:', err);
+      console.error('Database error:', err);
       return res.status(500).json({ error: 'Database error' });
     }
-
+    
     if (!request) {
       return res.status(404).json({ error: 'Approval request not found' });
     }
-
+    
     if (request.status !== 'Pending') {
       return res.status(400).json({ error: 'Request has already been processed' });
     }
-
+    
+    // Check if user has authority to approve at this level
     if (request.approval_level === 'ceo' && userRole !== 'ceo' && userRole !== 'admin') {
       return res.status(403).json({ error: 'Insufficient privileges to approve this request' });
     }
@@ -262,65 +303,59 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('branch_manager', 
         code: preflightError.code || 'PREFLIGHT_FAILED'
       });
     }
-
-    // Perform approval update and execution inside a DB transaction so failures rollback.
-    const { withTransaction } = require('../utils/transactionWrapper');
-
-    try {
-      const executionResult = await withTransaction(async () => {
-        // mark approved
-        await new Promise((resolve, reject) => {
-          db.run(
-            "UPDATE approval_requests SET status = 'Approved', justification = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?",
-            [justification || 'Approved', userId, id],
-            function(updateErr) {
-              if (updateErr) return reject(updateErr);
-              return resolve();
-            }
-          );
-        });
-
-        // call execution within same transaction; pass reviewed_by to execution helpers
-        const execReq = { ...request, reviewed_by: userId };
-        const result = await executeApprovedAction(execReq);
-
-        // record audit event inside transaction
-        try {
-          await recordAuditEvent({
-            action: 'APPROVAL_APPROVED',
-            entityType: 'approval_request',
-            entityId: id,
-            user: req.user,
-            details: { amount: request.amount, type: request.type, justification: justification || 'Approved' }
-          });
-        } catch (e) {
-          console.warn('Audit event failed to record within approval transaction:', e && e.message);
+    
+    // Update approval request
+    db.run(
+      "UPDATE approval_requests SET status = 'Approved', justification = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?",
+      [justification || 'Approved', userId, id],
+      function(err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: 'Database error' });
         }
+        
+        console.log(`[AUDIT] Approval request ${id} approved by ${userRole} (ID: ${userId}) at ${new Date().toISOString()}`);
+        
+        executeApprovedAction(request)
+          .then((result) => {
+            recordAuditEvent({
+              action: 'APPROVAL_APPROVED',
+              entityType: 'approval_request',
+              entityId: id,
+              user: req.user,
+              details: { amount: request.amount, type: request.type, justification: justification || 'Approved' }
+            }).catch(() => {});
+            // Notify requester about approval (best-effort)
+            try {
+              db.get('SELECT email, username FROM users WHERE id = ?', [request.requested_by], async (err, userRow) => {
+                if (!err && userRow && userRow.email) {
+                  const subject = `Your request ${id} has been approved`;
+                  const text = `Hello ${userRow.username || ''},\n\nYour approval request (${id}) for ${request.type} has been approved by ${req.user.role}.\n\nRegards,\nEdekise Microfinance`;
+                  try { await sendEmail(userRow.email, subject, text); } catch (e) { console.warn('Failed to send approval notification to requester', e && e.message); }
+                }
+              });
+            } catch (e) {
+              // ignore
+            }
 
-        return result || null;
-      });
-
-      console.log(`[AUDIT] Approval request ${id} approved by ${userRole} (ID: ${userId}) at ${new Date().toISOString()}`);
-
-      // Notify requester about approval (best-effort, outside transaction)
-      try {
-        db.get('SELECT email, username FROM users WHERE id = ?', [request.requested_by], async (err, userRow) => {
-          if (!err && userRow && userRow.email) {
-            const subject = `Your request ${id} has been approved`;
-            const text = `Hello ${userRow.username || ''},\n\nYour approval request (${id}) for ${request.type} has been approved by ${req.user.role}.\n\nRegards,\nEdekise Microfinance`;
-            try { await sendEmail(userRow.email, subject, text); } catch (e) { console.warn('Failed to send approval notification to requester', e && e.message); }
-          }
-        });
-      } catch (e) {
-        // ignore
+            res.json({
+              message: 'Request approved successfully',
+              execution: result || null
+            });
+          })
+          .catch((executionError) => {
+            console.error('Approval execution error:', executionError);
+            // Approval has already been recorded; return 200 with a warning so the UI
+            // doesn't show a hard failure for an already-approved request.
+            res.json({
+              message: 'Request approved successfully',
+              execution: null,
+              warning: 'Approval recorded but the requested action could not be completed',
+              details: executionError.message
+            });
+          });
       }
-
-      res.json({ message: 'Request approved successfully', execution: executionResult });
-    } catch (executionError) {
-      // Transaction roll back will have been attempted; surface detailed error for debugging
-      console.error('Approval transaction failed:', executionError);
-      return res.status(500).json({ error: 'Approval execution failed', details: executionError.message });
-    }
+    );
   });
 });
 
@@ -494,7 +529,9 @@ async function executeApprovedTransaction(request) {
   const details = parseRequestDetails(request);
 
   if (request.type === 'transaction_deposit') {
-    const { accountId, amount, description } = details;
+    const accountId = details.accountId || details.account_id || details.savings_account_id;
+    const amount = details.amount;
+    const description = details.description;
     
     const account = await new Promise((resolve, reject) => {
       db.get(
@@ -532,7 +569,7 @@ async function executeApprovedTransaction(request) {
           }
         );
       });
-      await recordAuditEvent({
+      await safeRecordAudit({
         action: 'APPROVED_DEPOSIT_EXECUTED',
         entityType: 'transaction',
         entityId: transactionId,
@@ -540,7 +577,7 @@ async function executeApprovedTransaction(request) {
         beforeState: { accountId, balance: balanceBefore },
         afterState: { accountId, balance: balanceAfter },
         details: { approval_request_id: request.id }
-      });
+      }, 'approved_deposit_executed');
       emitBalanceUpdated({ savingsAccountId: accountId, balance: balanceAfter });
       return {
         transaction_id: transactionId,
@@ -549,7 +586,9 @@ async function executeApprovedTransaction(request) {
       };
     }
   } else if (request.type === 'transaction_withdraw') {
-    const { accountId, amount, description } = details;
+    const accountId = details.accountId || details.account_id || details.savings_account_id;
+    const amount = details.amount;
+    const description = details.description;
     
     const account = await new Promise((resolve, reject) => {
       db.get(
@@ -587,7 +626,7 @@ async function executeApprovedTransaction(request) {
           }
         );
       });
-      await recordAuditEvent({
+      await safeRecordAudit({
         action: 'APPROVED_WITHDRAWAL_EXECUTED',
         entityType: 'transaction',
         entityId: transactionId,
@@ -595,7 +634,7 @@ async function executeApprovedTransaction(request) {
         beforeState: { accountId, balance: balanceBefore },
         afterState: { accountId, balance: balanceAfter },
         details: { approval_request_id: request.id }
-      });
+      }, 'approved_withdrawal_executed');
       emitBalanceUpdated({ savingsAccountId: accountId, balance: balanceAfter });
       return {
         transaction_id: transactionId,
@@ -678,7 +717,7 @@ async function executeApprovedAccountCreation(request) {
     }
   }
 
-  await recordAuditEvent({
+  await safeRecordAudit({
     action: 'ACCOUNT_CREATION_APPROVED',
     entityType: 'account',
     entityId: accountId,
@@ -691,7 +730,7 @@ async function executeApprovedAccountCreation(request) {
       client_name: account.client_name,
       requested_type: details.account_type || account.type
     }
-  });
+  }, 'account_creation_approved');
 
   // Ensure client user credentials exist and persist/send generated credentials if created
   try {
@@ -749,7 +788,7 @@ async function executeRejectedAccountCreation(request, reason) {
     });
   });
 
-  await recordAuditEvent({
+  await safeRecordAudit({
     action: 'ACCOUNT_CREATION_REJECTED',
     entityType: 'account',
     entityId: accountId,
@@ -757,7 +796,7 @@ async function executeRejectedAccountCreation(request, reason) {
     beforeState: { status: 'Pending' },
     afterState: { status: 'Rejected' },
     details: { reason, approval_request_id: request.id }
-  });
+  }, 'account_creation_rejected');
 
   return { account_id: accountId, status: 'Rejected', reason };
 }
@@ -784,7 +823,7 @@ async function executeApprovedSavingsAccount(request) {
     });
   });
 
-  await recordAuditEvent({
+  await safeRecordAudit({
     action: 'SAVINGS_ACCOUNT_APPROVED',
     entityType: 'savings_account',
     entityId: savingsId,
@@ -792,7 +831,7 @@ async function executeApprovedSavingsAccount(request) {
     beforeState: { status: 'Pending Manager Review' },
     afterState: { status: 'Active' },
     details: { approval_request_id: request.id, client_id: savings.client_id }
-  });
+  }, 'savings_account_approved');
 
   // Create notification for client
   const client = await new Promise((resolve, reject) => {
@@ -803,16 +842,20 @@ async function executeApprovedSavingsAccount(request) {
   });
 
   if (client) {
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [client.user_id, 'approval', 'Savings Account Approved', `Your savings account ${savingsId} has been approved and is now active.`, 'savings_account', savingsId, new Date().toISOString()],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    try {
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO notifications (user_id, type, title, message, entity_type, entity_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [client.user_id, 'approval', 'Savings Account Approved', `Your savings account ${savingsId} has been approved and is now active.`, 'savings_account', savingsId, new Date().toISOString()],
+          function(err) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    } catch (notificationError) {
+      console.warn('Savings approval notification write failed:', notificationError?.message || notificationError);
+    }
   }
 
   // Ensure client has user credentials and send them when created
@@ -867,7 +910,7 @@ async function executeRejectedSavingsAccount(request, reason) {
     );
   });
 
-  await recordAuditEvent({
+  await safeRecordAudit({
     action: 'SAVINGS_ACCOUNT_REJECTED',
     entityType: 'savings_account',
     entityId: savingsId,
@@ -875,7 +918,7 @@ async function executeRejectedSavingsAccount(request, reason) {
     beforeState: { status: 'Pending Manager Review' },
     afterState: { status: 'Rejected' },
     details: { reason, approval_request_id: request.id }
-  });
+  }, 'savings_account_rejected');
 
   return { savings_id: savingsId, status: 'Rejected', reason };
 }
@@ -1008,7 +1051,7 @@ async function executeApprovedLoan(request) {
     );
   });
 
-  await recordAuditEvent({
+  await safeRecordAudit({
     action: 'LOAN_APPROVED',
     entityType: 'loan_account',
     entityId: loanId,
@@ -1016,7 +1059,7 @@ async function executeApprovedLoan(request) {
     beforeState: { status: 'Pending Branch Manager Review' },
     afterState: { status: 'Active' },
     details: { approval_request_id: request.id, client_id: loan.client_id, amount: loan.amount }
-  });
+  }, 'loan_approved');
   emitLoanUpdated({ loanId, status: 'Active', balance: Number(loan.amount || 0) });
   emitBalanceUpdated({ savingsAccountId: loan.savings_account_id, balance: savingsBalanceAfter });
 
@@ -1071,7 +1114,7 @@ async function executeRejectedLoan(request, reason) {
     );
   });
 
-  await recordAuditEvent({
+  await safeRecordAudit({
     action: 'LOAN_REJECTED',
     entityType: 'loan_account',
     entityId: loanId,
@@ -1079,7 +1122,7 @@ async function executeRejectedLoan(request, reason) {
     beforeState: { status: 'Pending Branch Manager Review' },
     afterState: { status: 'Rejected' },
     details: { reason, approval_request_id: request.id }
-  });
+  }, 'loan_rejected');
   emitLoanUpdated({ loanId, status: 'Rejected' });
 
   const loan = await new Promise((resolve, reject) => {
@@ -1110,46 +1153,6 @@ async function executeRejectedLoan(request, reason) {
 // Get approval thresholds (for UI)
 router.get('/thresholds', authenticateToken, (req, res) => {
   res.json(APPROVAL_THRESHOLDS);
-});
-
-// List transactions linked to approval requests
-router.get('/transactions', authenticateToken, authorizeRoles('branch_manager', 'admin', 'ceo'), async (req, res) => {
-  const { approval_id, limit = 200 } = req.query;
-  const userRole = req.user.role;
-
-  try {
-    const params = [];
-    let where = 'WHERE t.approval_request_id IS NOT NULL';
-
-    if (approval_id) {
-      where += ' AND t.approval_request_id = ?';
-      params.push(approval_id);
-    }
-
-    if (userRole === 'branch_manager') {
-      where += " AND ar.approval_level = 'branch_manager'";
-    }
-
-    const sql = `SELECT t.*, ar.type AS approval_type, ar.approval_level, ar.requested_by, ar.reviewed_by
-                 FROM transactions t
-                 LEFT JOIN approval_requests ar ON ar.id = t.approval_request_id
-                 ${where}
-                 ORDER BY t.created_at DESC, t.id DESC
-                 LIMIT ?`;
-
-    params.push(Number(limit));
-
-    db.all(sql, params, (err, rows) => {
-      if (err) {
-        console.error('Error querying approval-linked transactions:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-      res.json(rows || []);
-    });
-  } catch (error) {
-    console.error('Approval transactions error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
 });
 
 module.exports = router;

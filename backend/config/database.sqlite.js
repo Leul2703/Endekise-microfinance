@@ -414,6 +414,19 @@ function initializeDatabase() {
       FOREIGN KEY (client_id) REFERENCES clients(id)
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id TEXT,
+      read_status INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
+
     console.log('Database tables initialized');
 
     db.run(`ALTER TABLE users ADD COLUMN email TEXT`, (err) => {

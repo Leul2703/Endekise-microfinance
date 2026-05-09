@@ -4,6 +4,7 @@ import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { io } from 'socket.io-client';
+import { formatDateOnly } from '../../utils/dateTime';
 
 const LOAN_TYPE_CONFIG = {
   'Micro Enterprise Loan': {
@@ -575,7 +576,7 @@ const LoanManagement = () => {
 
   const formatCurrency = (value) => `${parseFloat(value || 0).toLocaleString()} ETB`;
   const getLoanClientName = (loan) => loan.client || loan.client_name || '-';
-  const getLoanDueDate = (loan) => loan.dueDate || loan.disbursement_date || '-';
+  const getLoanDueDate = (loan) => formatDateOnly(loan.dueDate || loan.disbursement_date);
   const getLoanNextPayment = (loan) => loan.nextPayment || loan.monthly_payment || '-';
 
   return (
@@ -839,7 +840,7 @@ const LoanManagement = () => {
                       {paymentSchedule.map((item, idx) => (
                         <tr key={item.id || `${item.loan_id}-${idx}`}>
                           <td>{idx + 1}</td>
-                          <td>{item.due_date}</td>
+                          <td>{formatDateOnly(item.due_date)}</td>
                           <td>{Number(item.principal_amount || 0).toLocaleString()} ETB</td>
                           <td>{Number(item.interest_amount || 0).toLocaleString()} ETB</td>
                           <td>{Number(item.total_amount || 0).toLocaleString()} ETB</td>

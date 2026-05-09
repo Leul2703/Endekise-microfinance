@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 const UserAccounts = () => {
   const { error, success } = useToast();
   const [users, setUsers] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -19,8 +20,12 @@ const UserAccounts = () => {
     }
     setFetchError(null);
     try {
-      const data = await api.getUsers();
-      setUsers(Array.isArray(data) ? data : []);
+      const [userData, clientData] = await Promise.all([
+        api.getUsers(),
+        api.getClients().catch(() => [])
+      ]);
+      setUsers(Array.isArray(userData) ? userData : []);
+      setClients(Array.isArray(clientData) ? clientData : []);
     } catch (err) {
       console.error('Error loading CEO user accounts view:', err);
       const errorMessage = err.message || 'Failed to load users';
@@ -35,6 +40,7 @@ const UserAccounts = () => {
         }
       }
       setUsers([]);
+      setClients([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -45,8 +51,9 @@ const UserAccounts = () => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const filteredUsers = useMemo(() => (
+  const filteredStaffUsers = useMemo(() => (
     users.filter((user) => {
+      if (user.role === 'client') return false;
       const query = searchTerm.toLowerCase();
       return (
         user.name?.toLowerCase().includes(query) ||
@@ -56,6 +63,17 @@ const UserAccounts = () => {
       );
     })
   ), [searchTerm, users]);
+
+  const filteredClientUsers = useMemo(() => (
+    clients.filter((client) => {
+      const query = searchTerm.toLowerCase();
+      return (
+        client.name?.toLowerCase().includes(query) ||
+        client.email?.toLowerCase().includes(query) ||
+        client.phone?.toLowerCase().includes(query)
+      );
+    })
+  ), [clients, searchTerm]);
 
   return (
     <div className="admin-page">
@@ -115,7 +133,9 @@ const UserAccounts = () => {
           </div>
         </div>
       ) : (
-      <div className="table-container">
+      <>
+      <div className="table-container" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ margin: '1rem' }}>Staff Users</h3>
         <table className="data-table">
           <thead>
             <tr>
@@ -134,12 +154,12 @@ const UserAccounts = () => {
               <tr>
                 <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Loading user accounts...</td>
               </tr>
-            ) : filteredUsers.length === 0 ? (
+            ) : filteredStaffUsers.length === 0 ? (
               <tr>
                 <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>No user accounts matched your search.</td>
               </tr>
             ) : (
-              filteredUsers.map((user) => (
+              filteredStaffUsers.map((user) => (
                 <tr key={user.id}>
                   <td>#{user.id}</td>
                   <td>{user.name}</td>
@@ -163,6 +183,44 @@ const UserAccounts = () => {
           </tbody>
         </table>
       </div>
+      <div className="table-container">
+        <h3 style={{ margin: '1rem' }}>Clients</h3>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>KYC Status</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredClientUsers.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No clients matched your search.</td>
+              </tr>
+            ) : (
+              filteredClientUsers.map((client) => (
+                <tr key={`client-${client.id}`}>
+                  <td>#{client.id}</td>
+                  <td>{client.name}</td>
+                  <td>{client.email || 'Not set'}</td>
+                  <td>{client.phone || 'Not set'}</td>
+                  <td>{client.kyc_status || 'Pending'}</td>
+                  <td>
+                    <span className={`status ${client.status === 'Active' ? 'active' : 'inactive'}`}>
+                      {client.status || 'Active'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      </>
       )}
 
       {selectedUser && (

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DollarSign, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import './Dashboard.css';
 import api from '../utils/api';
+import { formatDateTime } from '../utils/dateTime';
 
 const BranchManagerDashboard = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const BranchManagerDashboard = () => {
   ]);
   const [pendingLoans, setPendingLoans] = useState([]);
   const [approvalQueue, setApprovalQueue] = useState([]);
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +24,11 @@ const BranchManagerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [loansData, approvalsData, complianceData] = await Promise.all([
+      const [loansData, approvalsData, complianceData, transactionsData] = await Promise.all([
         api.getPendingLoans().catch(() => []),
         api.getPendingApprovals().catch(() => []),
-        api.getComplianceOverview().catch(() => null)
+        api.getComplianceOverview().catch(() => null),
+        api.getRecentTransactions(10).catch(() => [])
       ]);
 
       const highPriorityLoans = loansData.filter(loan => loan.status === 'High Priority').length;
@@ -49,6 +52,7 @@ const BranchManagerDashboard = () => {
 
       setPendingLoans(loansData.slice(0, 5));
       setApprovalQueue(branchApprovals.slice(0, 5));
+      setRecentTransactions(Array.isArray(transactionsData) ? transactionsData.slice(0, 8) : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -131,6 +135,14 @@ const BranchManagerDashboard = () => {
               <Clock size={20} />
               Review Approval Queue
             </button>
+            <button className="action-btn secondary" onClick={() => navigate('/branch-manager/transactions')}>
+              <FileText size={20} />
+              View Transaction History
+            </button>
+            <button className="action-btn secondary" onClick={() => navigate('/branch-manager/statements')}>
+              <FileText size={20} />
+              Statement Approval Queue
+            </button>
           </div>
         </div>
 
@@ -160,6 +172,40 @@ const BranchManagerDashboard = () => {
                       <td>
                         <button className="btn-sm secondary" onClick={() => navigate('/branch-manager/savings')}>Review</button>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        <div className="section-card">
+          <h2>Recent Transactions</h2>
+          <div className="table-container">
+            {loading ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>Loading...</p>
+            ) : recentTransactions.length === 0 ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>No transaction history yet</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Client</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTransactions.map((txn) => (
+                    <tr key={txn.id}>
+                      <td>{txn.id}</td>
+                      <td>{txn.client_name || '-'}</td>
+                      <td>{txn.transaction_type}</td>
+                      <td>{Number(txn.amount || 0).toLocaleString()} ETB</td>
+                      <td>{formatDateTime(txn.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Calculator, History, Search, Wallet, RefreshCw, Ale
 import './AdminPages.css';
 import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
+import { formatDateTime } from '../../utils/dateTime';
 
 const Transactions = () => {
   const { success, error, warning } = useToast();
@@ -303,7 +304,7 @@ const Transactions = () => {
                   <td>{txn.description || '-'}</td>
                   <td>{parseFloat(txn.balance_before).toLocaleString()} ETB</td>
                   <td>{parseFloat(txn.balance_after).toLocaleString()} ETB</td>
-                  <td>{new Date(txn.created_at).toLocaleString()}</td>
+                  <td>{formatDateTime(txn.created_at)}</td>
                 </tr>
               ))}
             </tbody>
