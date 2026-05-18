@@ -192,6 +192,39 @@
   gap: 1.5rem;
 }
 
+.dashboard .section-card,
+.dashboard .dashboard-card,
+.dashboard .stat-card,
+.dashboard .summary-card,
+.dashboard .loan-card,
+.dashboard .savings-card {
+  border: 1px solid #dbe6f3;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard .dashboard-header h1 {
+  letter-spacing: -0.01em;
+}
+
+.dashboard .stat-icon,
+.dashboard .summary-icon,
+.dashboard .loan-icon,
+.dashboard .savings-icon {
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+}
+
+.dashboard .action-btn.primary,
+.dashboard .btn-sm.primary {
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.2);
+}
+
+.dashboard .action-btn.secondary,
+.dashboard .btn-sm.secondary {
+  border-color: #d4deea;
+}
+
 @media (max-width: 768px) {
   .client-spotlight,
   .client-spotlight-actions {
@@ -205,6 +238,46 @@
 
   .dashboard-sections {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.45rem;
+  }
+
+  .dashboard .stats-grid,
+  .dashboard .client-highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard .section-header-with-action {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .dashboard .section-header-with-action .btn-sm {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .dashboard .action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard .balance-summary .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard .balance-summary .data-table {
+    min-width: 640px;
+  }
+
+  .dashboard .modal-content,
+  .dashboard .modal {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
   }
 }
 

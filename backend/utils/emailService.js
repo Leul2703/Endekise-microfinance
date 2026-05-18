@@ -1,23 +1,46 @@
 const nodemailer = require('nodemailer');
+const { sendEmailReminder } = require('./notificationService');
 
-// Email configuration (can be overridden by environment variables)
-const emailConfig = {
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: process.env.EMAIL_PORT || 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER || process.env.SMTP_USER,
-    pass: process.env.EMAIL_PASS || process.env.SMTP_PASS
-  }
-};
+function parseBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return fallback;
 
-// Create transporter (lazy initialization)
+  const normalized = value.trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function getEmailConfig() {
+  const port = Number(process.env.EMAIL_PORT || process.env.MAIL_PORT || 587);
+  const secure = parseBoolean(
+    process.env.EMAIL_SECURE ?? process.env.MAIL_SECURE,
+    port === 465
+  );
+
+  return {
+    host: process.env.EMAIL_HOST || process.env.MAIL_HOST || 'smtp.gmail.com',
+    port,
+    secure,
+    auth: {
+      user: process.env.EMAIL_USER || process.env.SMTP_USER,
+      pass: process.env.EMAIL_PASS || process.env.SMTP_PASS
+    }
+  };
+}
+
 let transporter = null;
+let transporterCacheKey = null;
 
 function getTransporter() {
-  if (!transporter) {
+  const emailConfig = getEmailConfig();
+  const cacheKey = JSON.stringify(emailConfig);
+
+  if (!transporter || transporterCacheKey !== cacheKey) {
     transporter = nodemailer.createTransport(emailConfig);
+    transporterCacheKey = cacheKey;
   }
+
   return transporter;
 }
 
@@ -31,6 +54,18 @@ function getTransporter() {
  */
 async function sendEmail(to, subject, text, html = null) {
   try {
+    const apiResult = await sendEmailReminder({
+      to,
+      subject,
+      text,
+      html,
+      category: 'transactional'
+    });
+    if (apiResult.success) {
+      console.log(`[EMAIL] Sent via ${apiResult.provider || 'api'} to ${to}`);
+      return { success: true, messageId: apiResult.providerResponse, provider: apiResult.provider };
+    }
+
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.SMTP_FROM || 'noreply@edekise.com',
       to,
@@ -44,9 +79,9 @@ async function sendEmail(to, subject, text, html = null) {
 
     const transporter = getTransporter();
     const info = await transporter.sendMail(mailOptions);
-    
-    console.log(`[EMAIL] Email sent to ${to}: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+
+    console.log(`[EMAIL] Email sent via SMTP to ${to}: ${info.messageId}`);
+    return { success: true, messageId: info.messageId, provider: 'smtp' };
   } catch (error) {
     console.error('[EMAIL] Error sending email:', error);
     return { success: false, error: error.message };
@@ -78,14 +113,14 @@ Edekise Microfinance Team`;
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #667eea;">Payment Reminder</h2>
       <p>Dear ${payment.client_name},</p>
-      <p>This is a reminder that your payment of <strong>${payment.total_amount} ETB</strong> for loan <strong>${payment.loan_id}</strong> is due on <strong>${payment.dueDate}</strong>.</p>
+      <p>This is a reminder that your payment of <strong>${payment.total_amount} ETB</strong> for loan <strong>${payment.loan_id}</strong> is due on <strong>${payment.due_date}</strong>.</p>
       
       <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="margin-top: 0;">Loan Details:</h3>
         <ul style="list-style: none; padding: 0;">
           <li><strong>Loan ID:</strong> ${payment.loan_id}</li>
           <li><strong>Payment Amount:</strong> ${payment.total_amount} ETB</li>
-          <li><strong>Due Date:</strong> ${payment.dueDate}</li>
+          <li><strong>Due Date:</strong> ${payment.due_date}</li>
         </ul>
       </div>
       

@@ -30,6 +30,7 @@ const inclusiveRoutes = require('./routes/inclusive');
 const syncRoutes = require('./routes/sync');
 const reportsRoutes = require('./routes/reports');
 const mobileMoneyRoutes = require('./routes/mobile-money');
+const contactRoutes = require('./routes/contact');
 const { rateLimiters } = require('./middleware/rateLimiter');
 const { Server } = require('socket.io');
 const { setSocketServer } = require('./utils/realtime');
@@ -39,6 +40,9 @@ require('./scheduler/reminderScheduler');
 
 // Initialize interest calculation scheduler
 require('./scheduler/interestScheduler');
+
+// Growth Term Saving deposit reminders and interest pause
+require('./scheduler/growthTermScheduler');
 
 // Validate required environment variables
 const requiredEnvVars = ['JWT_SECRET'];
@@ -168,6 +172,7 @@ app.use('/api/inclusive', inclusiveRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/mobile-money', rateLimiters.financial, mobileMoneyRoutes);
+app.use('/api/contact', rateLimiters.read, contactRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

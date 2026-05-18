@@ -32,11 +32,19 @@ const TransactionHistory = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [dayFilter, setDayFilter] = useState('30');
   const [accountTypeFilter, setAccountTypeFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const loadTransactions = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -47,7 +55,7 @@ const TransactionHistory = () => {
           : '');
       const activeEnd = endDate ? `${endDate}T23:59:59.999Z` : '';
       const data = await api.getRecentTransactions(300, {
-        query: searchTerm.trim() || undefined,
+        query: debouncedSearchTerm || undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         account_type: accountTypeFilter !== 'all' ? accountTypeFilter : undefined,
         start_date: activeStart || undefined,
@@ -66,7 +74,7 @@ const TransactionHistory = () => {
 
   useEffect(() => {
     loadTransactions();
-  }, [dayFilter, typeFilter, accountTypeFilter, startDate, endDate, searchTerm]);
+  }, [dayFilter, typeFilter, accountTypeFilter, startDate, endDate, debouncedSearchTerm]);
 
   const filteredTransactions = useMemo(() => transactions, [transactions]);
 
@@ -103,9 +111,12 @@ const TransactionHistory = () => {
       <div className="page-header">
         <h1>Transaction History</h1>
         <p>View recent operational transactions recorded across branch-managed accounts.</p>
+        <div style={{ marginTop: '0.75rem' }}>
+          <span className="inline-meta">{filteredTransactions.length} records</span>
+        </div>
       </div>
 
-      <div className="page-actions">
+      <div className="page-actions sticky-actions">
         <div className="search-bar">
           <Search size={20} />
           <input
@@ -166,6 +177,19 @@ const TransactionHistory = () => {
           <RefreshCw size={20} className={refreshing ? 'spinning' : ''} />
           {refreshing ? 'Refreshing...' : 'Refresh'}
         </button>
+        <button
+          className="btn-secondary"
+          onClick={() => {
+            setSearchTerm('');
+            setTypeFilter('all');
+            setAccountTypeFilter('all');
+            setDayFilter('30');
+            setStartDate('');
+            setEndDate('');
+          }}
+        >
+          Reset Filters
+        </button>
       </div>
 
       {loading ? (
@@ -213,9 +237,9 @@ const TransactionHistory = () => {
             </tbody>
           </table>
           {filteredTransactions.length === 0 && (
-            <p style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-              No transactions found for the selected filters.
-            </p>
+            <div className="empty-state">
+              <p>No transactions found for the selected filters.</p>
+            </div>
           )}
         </div>
       )}

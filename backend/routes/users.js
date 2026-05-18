@@ -5,12 +5,16 @@ const { db } = require('../config/database');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { buildCompanyId } = require('../utils/companyId');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
+const {
+  normalizeEthiopianPhone,
+  validateEmail,
+  validateEthiopianPhone,
+  hasEmoji,
+  stripEmojis,
+  normalizeText
+} = require('../utils/inputValidators');
 
-const normalizePhoneNumber = (value) => {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  return raw.replace(/\D/g, '');
-};
+const normalizePhoneNumber = (value) => normalizeEthiopianPhone(value) || '';
 
 const resolveEffectiveBranchId = async (inputBranchId) => {
   const normalized = String(inputBranchId || '').trim();
@@ -142,8 +146,8 @@ router.get('/:id', authenticateToken, authorizeRoles('admin', 'ceo'), (req, res)
 router.post('/', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   const { name, username, email, password, role, branch_id, phone, full_name } = req.body;
   
-  if (!username || !password || !role) {
-    return res.status(400).json({ error: 'Username, password, and role are required' });
+  if (!username || !password || !role || !email) {
+    return res.status(400).json({ error: 'Username, email, password, and role are required' });
   }
   if (String(username).trim().length < 3 || /\s/.test(String(username))) {
     return res.status(400).json({ error: 'Username must be at least 3 characters and must not include spaces' });
@@ -154,11 +158,25 @@ router.post('/', authenticateToken, authorizeRoles('admin'), async (req, res) =>
   }
 
   try {
-    const normalizedPhone = normalizePhoneNumber(phone);
-    const normalizedEmail = email ? String(email).trim().toLowerCase() : '';
-    const normalizedName = String(full_name || name || username).trim();
-    if (phone && !normalizedPhone) {
-      return res.status(400).json({ error: 'Phone number must contain digits only.' });
+    const emailValidation = validateEmail(email, { required: true });
+    const phoneValidation = validateEthiopianPhone(phone, { required: Boolean(phone) });
+    if (emailValidation.errors.length > 0 || phoneValidation.errors.length > 0) {
+      return res.status(400).json({
+        error: emailValidation.errors[0] || phoneValidation.errors[0],
+        details: [...emailValidation.errors, ...phoneValidation.errors]
+      });
+    }
+    const normalizedPhone = phoneValidation.normalized;
+    const normalizedEmail = emailValidation.normalized;
+    const normalizedName = normalizeText(full_name || name || username);
+    if (
+      hasEmoji(normalizedName) ||
+      hasEmoji(username) ||
+      hasEmoji(normalizedEmail) ||
+      hasEmoji(password) ||
+      hasEmoji(branch_id)
+    ) {
+      return res.status(400).json({ error: 'Emoji characters are not allowed.' });
     }
 
     const duplicate = await new Promise((resolve, reject) => {
@@ -253,19 +271,29 @@ router.put('/:id', authenticateToken, authorizeRoles('admin'), (req, res) => {
 
   console.log('[UPDATE USER] ID:', id, 'Body:', req.body);
 
-  const normalizedPhone = normalizePhoneNumber(phone);
-  if (phone && !normalizedPhone) {
-    return res.status(400).json({ error: 'Phone number must contain digits only.' });
+  const emailValidation = validateEmail(email, { required: true });
+  const phoneValidation = validateEthiopianPhone(phone, { required: Boolean(phone) });
+  if (emailValidation.errors.length > 0 || phoneValidation.errors.length > 0) {
+    return res.status(400).json({
+      error: emailValidation.errors[0] || phoneValidation.errors[0],
+      details: [...emailValidation.errors, ...phoneValidation.errors]
+    });
   }
-  const normalizedEmail = email ? String(email).trim().toLowerCase() : '';
+  const normalizedPhone = phoneValidation.normalized;
+  const normalizedEmail = emailValidation.normalized;
   const normalizedUsername = String(username || '').trim();
-  const normalizedName = String(full_name || name || normalizedUsername).trim();
+  const normalizedName = normalizeText(full_name || name || normalizedUsername);
 
   if (!normalizedUsername || normalizedUsername.length < 3 || /\s/.test(normalizedUsername)) {
     return res.status(400).json({ error: 'Username must be at least 3 characters and must not include spaces' });
   }
-  if (!normalizedEmail) {
-    return res.status(400).json({ error: 'Email is required' });
+  if (
+    hasEmoji(normalizedName) ||
+    hasEmoji(normalizedUsername) ||
+    hasEmoji(normalizedEmail) ||
+    hasEmoji(branch_id)
+  ) {
+    return res.status(400).json({ error: 'Emoji characters are not allowed.' });
   }
 
   db.get('SELECT id, username, email, phone FROM users WHERE id = ?', [id], (loadErr, currentUser) => {

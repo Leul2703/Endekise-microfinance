@@ -17,6 +17,13 @@ const {
   runQuery
 } = require('../utils/loanWorkflow');
 const { emitLoanUpdated } = require('../utils/realtime');
+const {
+  evaluateLoanSavingsRequirement,
+  assertLoanSavingsRequirement,
+  COLLATERAL_PERCENT,
+  MIN_PERCENT
+} = require('../utils/loanSavingsRequirement');
+const { buildPenaltySchedule } = require('../utils/loanPenalties');
 
 const LOAN_TYPE_RULES = {
   'Micro Enterprise Loan': Number(process.env.LOAN_RATE_MICRO_ENTERPRISE || 8),
@@ -172,6 +179,18 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (savingsAccount.status !== 'Active') {
       return res.status(400).json({ error: 'Loan application requires an approved active savings account' });
+    }
+
+    const savingsEvaluation = await evaluateLoanSavingsRequirement({
+      savingsAccount,
+      loanAmount,
+      clientId: client_id
+    });
+    if (!savingsEvaluation.eligible) {
+      return res.status(400).json({
+        error: savingsEvaluation.message,
+        savings_requirement: savingsEvaluation
+      });
     }
 
     const loanId = generateLoanAccountNumber();
@@ -372,13 +391,23 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/policy/savings-requirement', authenticateToken, (req, res) => {
+  res.json({
+    collateral_percent: COLLATERAL_PERCENT,
+    minimum_percent: MIN_PERCENT,
+    description: `Clients must hold at least ${COLLATERAL_PERCENT}% of the requested loan amount in an active savings account and upload supporting documents before loan approval.`
+  });
+});
+
 // Get pending loan approvals
-router.get('/approvals/pending', authenticateToken, (req, res) => {
+router.get('/approvals/pending', authenticateToken, async (req, res) => {
   const userRole = req.user.role;
   let query = `
-    SELECT la.*, c.name AS client_name, c.email AS client_email
+    SELECT la.*, c.name AS client_name, c.email AS client_email,
+           sa.amount AS savings_balance, sa.id AS linked_savings_id
     FROM loan_accounts la
     JOIN clients c ON c.id = la.client_id
+    LEFT JOIN savings_accounts sa ON sa.id = la.savings_account_id
   `;
   let params = [];
 
@@ -392,20 +421,117 @@ router.get('/approvals/pending', authenticateToken, (req, res) => {
 
   query += ' ORDER BY la.created_at DESC';
 
-  db.all(query, params, (err, loans) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Database error' });
+  try {
+    const loans = await runMany(query, params);
+    const enriched = await Promise.all(loans.map(async (loan) => {
+      const savingsEvaluation = await evaluateLoanSavingsRequirement({
+        savingsAccount: {
+          id: loan.linked_savings_id || loan.savings_account_id,
+          amount: loan.savings_balance
+        },
+        loanAmount: loan.amount,
+        clientId: loan.client_id,
+        loanId: loan.id
+      });
+      return {
+        ...loan,
+        client: loan.client_name,
+        term: `${parseTermMonths(loan.term)} months`,
+        amount: Number(loan.amount),
+        submitted: loan.created_at,
+        savings_requirement: savingsEvaluation
+      };
+    }));
+    res.json(enriched);
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Branch manager / staff review package: documents, receipts, penalty schedule
+router.get('/:id/review-package', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  if (!['branch_manager', 'ceo', 'admin', 'loan_staff'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Not authorized to view loan review package' });
+  }
+
+  try {
+    const loan = await fetchLoanWithClient(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found' });
     }
 
-    res.json(loans.map((loan) => ({
-      ...loan,
-      client: loan.client_name,
-      term: `${parseTermMonths(loan.term)} months`,
-      amount: Number(loan.amount),
-      submitted: loan.created_at
-    })));
-  });
+    const savingsAccount = loan.savings_account_id
+      ? await runQuery('SELECT * FROM savings_accounts WHERE id = ?', [loan.savings_account_id])
+      : null;
+
+    const savingsRequirement = await evaluateLoanSavingsRequirement({
+      savingsAccount,
+      loanAmount: loan.amount,
+      clientId: loan.client_id,
+      loanId: id
+    });
+
+    const documents = await runMany(
+      `SELECT id, type, file_name, status, uploaded_at, loan_id, approval_request_id
+       FROM documents
+       WHERE client_id = ?
+         AND (loan_id = ? OR related_entity_type = 'loan_account' AND related_entity_id = ?)
+       ORDER BY uploaded_at DESC`,
+      [loan.client_id, id, id]
+    );
+
+    const loanTransactions = await runMany(
+      `SELECT id, account_id, account_type, transaction_type, amount, balance_before, balance_after,
+              description, transaction_reference, created_at
+       FROM transactions
+       WHERE account_id = ? AND account_type = 'loan'
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [id]
+    );
+
+    const savingsTransactions = savingsAccount
+      ? await runMany(
+        `SELECT id, account_id, account_type, transaction_type, amount, balance_before, balance_after,
+                description, transaction_reference, created_at
+         FROM transactions
+         WHERE account_id = ? AND account_type = 'savings'
+         ORDER BY created_at DESC
+         LIMIT 50`,
+        [savingsAccount.id]
+      )
+      : [];
+
+    const scheduleRows = await runMany(
+      'SELECT * FROM payment_schedule WHERE loan_id = ? ORDER BY due_date ASC',
+      [id]
+    );
+    const penaltySchedule = buildPenaltySchedule(scheduleRows);
+
+    res.json({
+      loan,
+      savings_account: savingsAccount,
+      savings_requirement: savingsRequirement,
+      documents,
+      transactions: {
+        loan: loanTransactions,
+        savings: savingsTransactions
+      },
+      payment_schedule: penaltySchedule.schedule,
+      penalty_schedule: {
+        penalty_rate_percent: penaltySchedule.penalty_rate_percent,
+        description: penaltySchedule.description,
+        total_penalty_outstanding: penaltySchedule.total_penalty_outstanding,
+        total_installments_overdue: penaltySchedule.total_installments_overdue
+      }
+    });
+  } catch (error) {
+    console.error('Loan review package error:', error);
+    res.status(500).json({ error: 'Failed to load loan review package' });
+  }
 });
 
 // Approve loan
@@ -428,6 +554,24 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
 
     if (!['branch_manager', 'ceo', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only Branch Manager, CEO, or Admin can approve loans.' });
+    }
+
+    const savingsAccount = loan.savings_account_id
+      ? await runQuery('SELECT * FROM savings_accounts WHERE id = ?', [loan.savings_account_id])
+      : null;
+
+    try {
+      await assertLoanSavingsRequirement({
+        savingsAccount,
+        loanAmount: loan.amount,
+        clientId: loan.client_id,
+        loanId: id
+      });
+    } catch (savingsError) {
+      return res.status(savingsError.statusCode || 400).json({
+        error: savingsError.message,
+        savings_requirement: savingsError.details || null
+      });
     }
 
     if (req.user.role === 'branch_manager' && isHighValueLoan) {

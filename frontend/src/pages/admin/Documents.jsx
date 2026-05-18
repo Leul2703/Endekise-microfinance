@@ -104,7 +104,7 @@ const Documents = () => {
         });
       }, 100);
 
-      const data = await fetch('http://localhost:5000/api/documents/upload', {
+      const data = await fetch('http://192.168.137.1:5000/api/documents/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: formData
@@ -132,7 +132,7 @@ const Documents = () => {
 
   const handleDownload = async (documentId) => {
     try {
-      window.open(`http://localhost:5000/api/documents/${documentId}/download?token=${localStorage.getItem('token')}`, '_blank');
+      window.open(`http://192.168.137.1:5000/api/documents/${documentId}/download?token=${localStorage.getItem('token')}`, '_blank');
     } catch (err) {
       error('Failed to download document');
     }
@@ -140,7 +140,7 @@ const Documents = () => {
 
   const handleVerify = async (documentId) => {
     try {
-      const data = await fetch(`http://localhost:5000/api/documents/${documentId}/verify`, {
+      const data = await fetch(`http://192.168.137.1:5000/api/documents/${documentId}/verify`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       }).then(res => res.json());
@@ -174,7 +174,7 @@ const Documents = () => {
     }
 
     try {
-      const data = await fetch(`http://localhost:5000/api/documents/${rejectingDocumentId}/reject`, {
+      const data = await fetch(`http://192.168.137.1:5000/api/documents/${rejectingDocumentId}/reject`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -199,7 +199,7 @@ const Documents = () => {
 
   const confirmDelete = async () => {
     try {
-      const data = await fetch(`http://localhost:5000/api/documents/${deletingDocumentId}`, {
+      const data = await fetch(`http://192.168.137.1:5000/api/documents/${deletingDocumentId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       }).then(res => res.json());

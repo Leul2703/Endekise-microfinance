@@ -427,6 +427,26 @@ function initializeDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS customer_messages (
+      id TEXT PRIMARY KEY,
+      submitted_by_user_id INTEGER,
+      client_id INTEGER,
+      name TEXT,
+      email TEXT,
+      phone TEXT,
+      category TEXT DEFAULT 'complaint',
+      subject TEXT,
+      message TEXT NOT NULL,
+      status TEXT DEFAULT 'Pending',
+      assigned_to INTEGER,
+      resolved_at TEXT,
+      resolution_notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (submitted_by_user_id) REFERENCES users(id),
+      FOREIGN KEY (client_id) REFERENCES clients(id),
+      FOREIGN KEY (assigned_to) REFERENCES users(id)
+    )`);
+
     console.log('Database tables initialized');
 
     db.run(`ALTER TABLE users ADD COLUMN email TEXT`, (err) => {
@@ -651,6 +671,22 @@ function initializeDatabase() {
     db.run(`ALTER TABLE clients ADD COLUMN group_id INTEGER`, (err) => {
       if (err && !err.message.includes('duplicate column name')) {
         console.error('Error adding clients.group_id column:', err.message);
+      }
+    });
+
+    db.run(`ALTER TABLE clients ADD COLUMN notify_email INTEGER DEFAULT 1`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding clients.notify_email column:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE clients ADD COLUMN notify_sms INTEGER DEFAULT 1`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding clients.notify_sms column:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE clients ADD COLUMN notify_payment_reminders INTEGER DEFAULT 1`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding clients.notify_payment_reminders column:', err.message);
       }
     });
 

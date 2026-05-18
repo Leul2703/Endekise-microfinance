@@ -5,6 +5,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Unauthorized from './pages/Unauthorized';
+import ContactUs from './pages/ContactUs';
 import Layout from './components/Layout';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './utils/ProtectedRoute';
@@ -22,6 +23,7 @@ import Logs from './pages/admin/Logs';
 import UserManagement from './pages/admin/UserManagement';
 import Clients from './pages/admin/Clients';
 import UnlockRequests from './pages/admin/UnlockRequests';
+import Compliance from './pages/admin/Compliance';
 
 // Branch Manager pages
 import LoanApprovals from './pages/branch-manager/LoanApprovals';
@@ -61,6 +63,7 @@ function App() {
             <Route path="/unauthorized" element={<Unauthorized />} />
             
             <Route path="/" element={<Landing />} />
+            <Route path="/contact" element={<ContactUs />} />
             
             <Route
               path="/admin/*"
@@ -75,6 +78,7 @@ function App() {
               <Route path="users" element={<UserManagement />} />
               <Route path="clients" element={<Clients />} />
               <Route path="unlock-requests" element={<UnlockRequests />} />
+              <Route path="compliance" element={<Compliance />} />
               <Route path="logs" element={<Logs />} />
               <Route path="settings" element={<Settings />} />
             </Route>

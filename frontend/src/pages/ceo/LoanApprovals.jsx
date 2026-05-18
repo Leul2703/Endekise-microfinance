@@ -156,10 +156,13 @@ const LoanApprovals = () => {
     <div className="admin-page">
       <div className="page-header">
         <h1>CEO Loan Approvals</h1>
-        <p>Review and approve high-value loans (over 100K ETB) escalated from Branch Managers.</p>
+        <p>Finalize high-value loan applications after branch-manager review. Only loans already forwarded from the branch queue appear here.</p>
+        <div style={{ marginTop: '0.75rem' }}>
+          <span className="inline-meta">CEO queue: {filteredLoans.length}</span>
+        </div>
       </div>
 
-      <div className="page-actions">
+      <div className="page-actions sticky-actions">
         <div className="search-bar">
           <Search size={20} />
           <input
@@ -175,7 +178,6 @@ const LoanApprovals = () => {
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">All Status</option>
             <option value="Pending CEO Review">Pending CEO Review</option>
-            <option value="Pending">Pending</option>
           </select>
         </div>
       </div>

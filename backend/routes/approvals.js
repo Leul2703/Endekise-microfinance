@@ -6,6 +6,26 @@ const { recordAuditEvent } = require('../utils/auditTrail');
 const { emitLoanUpdated, emitBalanceUpdated } = require('../utils/realtime');
 const { ensureClientUserCredentials, ensureRegistrationRequestCredentialColumns } = require('./clients');
 const { sendEmail, sendLoanApprovalEmail, sendLoanRejectionEmail } = require('../utils/emailService');
+const { sendEmailReminder } = require('../utils/notificationService');
+
+const safeSendClientEmail = async ({ clientId, subject, text, category, metadata = {} }) => {
+  if (!clientId) return;
+  try {
+    const client = await new Promise((resolve, reject) => {
+      db.get('SELECT id, name, email FROM clients WHERE id = ?', [clientId], (err, row) => (err ? reject(err) : resolve(row || null)));
+    });
+    if (!client?.email) return;
+    await sendEmailReminder({
+      to: client.email,
+      subject,
+      text,
+      category: category || 'client_notification',
+      metadata: { client_id: clientId, ...metadata }
+    });
+  } catch (e) {
+    console.warn('Client email send failed:', e?.message || e);
+  }
+};
 
 // Approval thresholds (ETB)
 const APPROVAL_THRESHOLDS = {
@@ -400,6 +420,27 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('branch_manager', '
             ...request,
             reviewed_by: userId
           }, reason);
+
+          // Customer-facing emails for transaction approvals that don't require execution cleanup.
+          try {
+            if (['transaction_deposit', 'transaction_withdraw'].includes(request.type)) {
+              const details = parseRequestDetails(request);
+              const accountId = details.accountId || details.account_id || details.savings_account_id || request.entity_id;
+              const clientId = details.client_id || details.clientId || null;
+              if (clientId) {
+                await safeSendClientEmail({
+                  clientId,
+                  subject: `${request.type === 'transaction_deposit' ? 'Deposit' : 'Withdrawal'} Rejected - ${accountId}`,
+                  text: `Dear client,\n\nYour ${request.type === 'transaction_deposit' ? 'deposit' : 'withdrawal'} request was rejected.\nAccount: ${accountId}\nAmount: ${Number(details.amount || request.amount || 0).toLocaleString()} ETB\nReason: ${reason || 'Not specified'}\n\nEdekise Microfinance`,
+                  category: request.type === 'transaction_deposit' ? 'deposit_rejected' : 'withdrawal_rejected',
+                  metadata: { approval_request_id: request.id, account_id: accountId }
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('Transaction rejection customer email failed:', e?.message || e);
+          }
+
           recordAuditEvent({
             action: 'APPROVAL_REJECTED',
             entityType: 'approval_request',
@@ -579,6 +620,19 @@ async function executeApprovedTransaction(request) {
         details: { approval_request_id: request.id }
       }, 'approved_deposit_executed');
       emitBalanceUpdated({ savingsAccountId: accountId, balance: balanceAfter });
+      try {
+        const { recordGrowthTermDeposit } = require('../utils/growthTermDeposits');
+        await recordGrowthTermDeposit(accountId, Number(amount || 0));
+      } catch (growthErr) {
+        console.warn('Growth Term deposit tracking failed:', growthErr?.message || growthErr);
+      }
+      await safeSendClientEmail({
+        clientId: account.client_id,
+        subject: `Deposit Approved - ${accountId}`,
+        text: `Dear client,\n\nYour deposit request has been approved.\nAccount: ${accountId}\nAmount: ${Number(amount || 0).toLocaleString()} ETB\nNew balance: ${Number(balanceAfter || 0).toLocaleString()} ETB\nTransaction ID: ${transactionId}\n\nEdekise Microfinance`,
+        category: 'deposit_approved',
+        metadata: { approval_request_id: request.id, transaction_id: transactionId, account_id: accountId, amount: Number(amount || 0) }
+      });
       return {
         transaction_id: transactionId,
         account_id: accountId,
@@ -636,6 +690,13 @@ async function executeApprovedTransaction(request) {
         details: { approval_request_id: request.id }
       }, 'approved_withdrawal_executed');
       emitBalanceUpdated({ savingsAccountId: accountId, balance: balanceAfter });
+      await safeSendClientEmail({
+        clientId: account.client_id,
+        subject: `Withdrawal Approved - ${accountId}`,
+        text: `Dear client,\n\nYour withdrawal request has been approved.\nAccount: ${accountId}\nAmount: ${Number(amount || 0).toLocaleString()} ETB\nNew balance: ${Number(balanceAfter || 0).toLocaleString()} ETB\nTransaction ID: ${transactionId}\n\nEdekise Microfinance`,
+        category: 'withdrawal_approved',
+        metadata: { approval_request_id: request.id, transaction_id: transactionId, account_id: accountId, amount: Number(amount || 0) }
+      });
       return {
         transaction_id: transactionId,
         account_id: accountId,
@@ -798,6 +859,23 @@ async function executeRejectedAccountCreation(request, reason) {
     details: { reason, approval_request_id: request.id }
   }, 'account_creation_rejected');
 
+  try {
+    const account = await new Promise((resolve, reject) => {
+      db.get('SELECT client_id FROM savings_accounts WHERE id = ?', [accountId], (err, row) => (err ? reject(err) : resolve(row || null)));
+    });
+    if (account?.client_id) {
+      await safeSendClientEmail({
+        clientId: account.client_id,
+        subject: `Savings Account Opening Rejected - ${accountId}`,
+        text: `Dear client,\n\nYour savings account opening request (${accountId}) was rejected.\nReason: ${reason || 'Not specified'}\n\nPlease contact the branch for guidance.\n\nEdekise Microfinance`,
+        category: 'account_opening_rejected',
+        metadata: { approval_request_id: request.id, account_id: accountId }
+      });
+    }
+  } catch (e) {
+    console.warn('Account creation rejection email failed:', e?.message || e);
+  }
+
   return { account_id: accountId, status: 'Rejected', reason };
 }
 
@@ -822,6 +900,13 @@ async function executeApprovedSavingsAccount(request) {
       else resolve(row);
     });
   });
+
+  try {
+    const { initializeGrowthTermAccount } = require('../utils/growthTermDeposits');
+    await initializeGrowthTermAccount(savings);
+  } catch (growthErr) {
+    console.warn('Growth Term initialization failed:', growthErr?.message || growthErr);
+  }
 
   await safeRecordAudit({
     action: 'SAVINGS_ACCOUNT_APPROVED',
@@ -856,6 +941,16 @@ async function executeApprovedSavingsAccount(request) {
     } catch (notificationError) {
       console.warn('Savings approval notification write failed:', notificationError?.message || notificationError);
     }
+  }
+
+  if (client?.id) {
+    await safeSendClientEmail({
+      clientId: client.id,
+      subject: `Savings Account Approved - ${savingsId}`,
+      text: `Dear ${client.name || 'client'},\n\nYour savings account ${savingsId} has been approved and is now active.\n\nEdekise Microfinance`,
+      category: 'savings_account_approved',
+      metadata: { approval_request_id: request.id, savings_account_id: savingsId }
+    });
   }
 
   // Ensure client has user credentials and send them when created
@@ -919,6 +1014,23 @@ async function executeRejectedSavingsAccount(request, reason) {
     afterState: { status: 'Rejected' },
     details: { reason, approval_request_id: request.id }
   }, 'savings_account_rejected');
+
+  try {
+    const savings = await new Promise((resolve, reject) => {
+      db.get('SELECT client_id FROM savings_accounts WHERE id = ?', [savingsId], (err, row) => (err ? reject(err) : resolve(row || null)));
+    });
+    if (savings?.client_id) {
+      await safeSendClientEmail({
+        clientId: savings.client_id,
+        subject: `Savings Account Rejected - ${savingsId}`,
+        text: `Dear client,\n\nYour savings account request (${savingsId}) was rejected.\nReason: ${reason || 'Not specified'}\n\nPlease contact the branch if you need help.\n\nEdekise Microfinance`,
+        category: 'savings_account_rejected',
+        metadata: { approval_request_id: request.id, savings_account_id: savingsId }
+      });
+    }
+  } catch (e) {
+    console.warn('Savings rejection email failed:', e?.message || e);
+  }
 
   return { savings_id: savingsId, status: 'Rejected', reason };
 }

@@ -4,10 +4,11 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { db } = require('../config/database');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const { assertClientKycEligible } = require('../utils/compliance');
+const { assertClientKycEligible, getClientKycStatus } = require('../utils/compliance');
+const { getClientDepositObligations } = require('../utils/growthTermDeposits');
 const { recordAuditEvent } = require('../utils/auditTrail');
 const { withTransaction } = require('../utils/transactionWrapper');
-const { sendEmail } = require('../utils/emailService');
+const { sendEmail, sendWelcomeEmail } = require('../utils/emailService');
 
 // Generate account ID
 const generateAccountId = (type) => {
@@ -28,9 +29,16 @@ const buildClientUsername = (fullName, clientId) => {
 
 const generateTemporaryPassword = () => `Cli-${crypto.randomBytes(6).toString('base64url')}`;
 
-const normalizeText = (value) => String(value || '').trim();
-const normalizeEmail = (value) => normalizeText(value).toLowerCase();
-const normalizePhone = (value) => normalizeText(value);
+const {
+  normalizeText,
+  normalizeEmail,
+  normalizeEthiopianPhone,
+  hasEmoji,
+  validateClientRegistrationFields,
+  validateEmail,
+  validateEthiopianPhone
+} = require('../utils/inputValidators');
+const { findDuplicateRegistration, duplicateRegistrationMessage } = require('../utils/duplicateRegistration');
 
 const isPasswordUsed = async (plainPassword) => {
   if (!plainPassword) return false;
@@ -53,7 +61,7 @@ const ensureClientUserCredentials = async (client) => {
 
   const normalizedClientName = normalizeText(client.name);
   const normalizedClientEmail = normalizeEmail(client.email);
-  const normalizedClientPhone = normalizePhone(client.phone);
+  const normalizedClientPhone = normalizeEthiopianPhone(client.phone);
 
   const existingClientUser = await new Promise((resolve, reject) => {
     db.get(
@@ -197,55 +205,29 @@ const buildRegistrationDecision = ({ payload, duplicateIdNumber = false, duplica
   };
 };
 
-const detectDuplicateClientIdentity = async ({ name, email, phone, id_number, excludeClientId = null }) => {
-  const normalizedName = normalizeText(name);
-  const normalizedEmail = normalizeEmail(email);
-  const normalizedPhone = normalizePhone(phone);
-  const normalizedIdNumber = normalizeText(id_number);
-  const exclusionClause = excludeClientId ? 'AND id != ?' : '';
-  const withExclusion = (params) => (excludeClientId ? [...params, excludeClientId] : params);
+const detectDuplicateClientIdentity = async ({ name, email, phone, id_number, id_type, excludeClientId = null }) => {
+  const flags = await findDuplicateRegistration({
+    name,
+    email,
+    phone,
+    id_number,
+    id_type,
+    excludeClientId
+  });
 
-  const [nameDuplicate, emailDuplicate, phoneDuplicate, idDuplicate] = await Promise.all([
-    normalizedName
-      ? new Promise((resolve, reject) => {
-          db.get(`SELECT id FROM clients WHERE lower(name) = lower(?) ${exclusionClause}`, withExclusion([normalizedName]), (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : Promise.resolve(false),
-    normalizedEmail
-      ? new Promise((resolve, reject) => {
-          db.get(`SELECT id FROM clients WHERE lower(email) = ? ${exclusionClause}`, withExclusion([normalizedEmail]), (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : Promise.resolve(false),
-    normalizedPhone
-      ? new Promise((resolve, reject) => {
-          db.get(`SELECT id FROM clients WHERE phone = ? ${exclusionClause}`, withExclusion([normalizedPhone]), (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : Promise.resolve(false),
-    normalizedIdNumber
-      ? new Promise((resolve, reject) => {
-          db.get(`SELECT id FROM clients WHERE id_number = ? ${exclusionClause}`, withExclusion([normalizedIdNumber]), (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : Promise.resolve(false)
-  ]);
+  const messages = {
+    DUPLICATE_NAME: 'Name already exists',
+    DUPLICATE_EMAIL: 'Email already exists',
+    DUPLICATE_USER_EMAIL: 'Email already used by another user account',
+    DUPLICATE_PHONE: 'Phone already exists',
+    DUPLICATE_USER_PHONE: 'Phone already used by another user account',
+    DUPLICATE_ID_NUMBER: 'ID number already exists',
+    DUPLICATE_PENDING_EMAIL: 'Email already has a pending registration',
+    DUPLICATE_PENDING_PHONE: 'Phone already has a pending registration',
+    DUPLICATE_PENDING_ID: 'ID number already has a pending registration'
+  };
 
-  const duplicates = [];
-  if (nameDuplicate) duplicates.push('Name already exists');
-  if (emailDuplicate) duplicates.push('Email already exists');
-  if (phoneDuplicate) duplicates.push('Phone already exists');
-  if (idDuplicate) duplicates.push('ID number already exists');
-  return duplicates;
+  return flags.map((flag) => messages[flag] || duplicateRegistrationMessage([flag]));
 };
 
 const getOrCreateClientProfile = async (user) => {
@@ -342,10 +324,175 @@ router.get('/me/balance-summary', authenticateToken, authorizeRoles('client'), a
 router.get('/me/profile', authenticateToken, authorizeRoles('client'), async (req, res) => {
   try {
     const client = await getOrCreateClientProfile(req.user);
-    res.json(client);
+    res.json({
+      ...client,
+      notification_preferences: {
+        emailNotifications: Number(client.notify_email ?? 1) === 1,
+        smsNotifications: Number(client.notify_sms ?? 1) === 1,
+        paymentReminders: Number(client.notify_payment_reminders ?? 1) === 1
+      }
+    });
   } catch (error) {
     console.error('Client profile load error:', error);
     res.status(500).json({ error: 'Failed to load client profile' });
+  }
+});
+
+router.get('/me/deposit-schedule', authenticateToken, authorizeRoles('client'), async (req, res) => {
+  try {
+    const client = await getOrCreateClientProfile(req.user);
+    const obligations = await getClientDepositObligations(client.id);
+    res.json({ obligations });
+  } catch (error) {
+    console.error('Deposit schedule error:', error);
+    res.status(500).json({ error: 'Failed to load deposit schedule' });
+  }
+});
+
+router.get('/kyc/pending', authenticateToken, authorizeRoles('admin', 'branch_manager'), async (req, res) => {
+  try {
+    const rows = await new Promise((resolve, reject) => {
+      db.all(
+        `SELECT c.*,
+                (SELECT COUNT(*) FROM documents d WHERE d.client_id = c.id) AS document_count
+         FROM clients c
+         WHERE COALESCE(c.kyc_status, 'Pending') != 'Verified'
+         ORDER BY c.created_at DESC`,
+        [],
+        (err, list) => (err ? reject(err) : resolve(list || []))
+      );
+    });
+    res.json(rows);
+  } catch (error) {
+    console.error('Pending KYC list error:', error);
+    res.status(500).json({ error: 'Failed to load pending KYC clients' });
+  }
+});
+
+router.get('/:clientId/kyc/status', authenticateToken, authorizeRoles('admin', 'branch_manager', 'loan_staff', 'saving_staff'), async (req, res) => {
+  try {
+    const kyc = await getClientKycStatus(req.params.clientId);
+    if (!kyc.client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    res.json(kyc);
+  } catch (error) {
+    console.error('KYC status error:', error);
+    res.status(500).json({ error: 'Failed to load KYC status' });
+  }
+});
+
+router.post('/:clientId/kyc/submit', authenticateToken, authorizeRoles('admin', 'branch_manager', 'loan_staff', 'saving_staff'), async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const kyc = await getClientKycStatus(clientId);
+    if (!kyc.client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    if (!kyc.fieldsComplete) {
+      return res.status(400).json({
+        error: `Cannot submit KYC for review. Missing: ${kyc.missing.join(', ')}`,
+        details: kyc
+      });
+    }
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE clients SET kyc_status = 'Pending' WHERE id = ?`,
+        [clientId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+    await recordAuditEvent({
+      action: 'KYC_SUBMITTED_FOR_REVIEW',
+      entityType: 'client',
+      entityId: String(clientId),
+      user: req.user,
+      details: { missing: kyc.missing }
+    });
+    res.json({ message: 'KYC submitted for verification', kyc_status: 'Pending' });
+  } catch (error) {
+    console.error('KYC submit error:', error);
+    res.status(500).json({ error: 'Failed to submit KYC' });
+  }
+});
+
+router.post('/:clientId/kyc/verify', authenticateToken, authorizeRoles('admin', 'branch_manager'), async (req, res) => {
+  const { clientId } = req.params;
+  const { notes } = req.body || {};
+  try {
+    const client = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM clients WHERE id = ?', [clientId], (err, row) => (err ? reject(err) : resolve(row)));
+    });
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    const kyc = await getClientKycStatus(clientId);
+    if (!kyc.fieldsComplete) {
+      return res.status(400).json({
+        error: `Cannot verify KYC. Missing requirements: ${kyc.missing.join(', ')}`,
+        details: kyc
+      });
+    }
+    const verifiedAt = new Date().toISOString();
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE clients SET kyc_status = 'Verified', kyc_verified_at = ? WHERE id = ?`,
+        [verifiedAt, clientId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+    const credentials = await ensureClientUserCredentials({ ...client, kyc_status: 'Verified' });
+    if (credentials.created && client.email) {
+      await sendEmail(
+        client.email,
+        'KYC Verified – Your account is active',
+        `Dear ${client.name}, your KYC verification is complete. You may now use all account services.\nUsername: ${credentials.username}\nTemporary Password: ${credentials.temporaryPassword}`,
+        `<p>Dear ${client.name},</p><p>Your KYC verification is complete.</p><p><strong>Username:</strong> ${credentials.username}<br/><strong>Temporary Password:</strong> ${credentials.temporaryPassword}</p>`
+      );
+    }
+    await recordAuditEvent({
+      action: 'KYC_VERIFIED',
+      entityType: 'client',
+      entityId: String(clientId),
+      user: req.user,
+      details: { notes: notes || null }
+    });
+    res.json({
+      message: 'KYC verified successfully',
+      client: { ...client, kyc_status: 'Verified', kyc_verified_at: verifiedAt },
+      credentials_created: credentials.created
+    });
+  } catch (error) {
+    console.error('KYC verify error:', error);
+    res.status(500).json({ error: 'Failed to verify KYC' });
+  }
+});
+
+router.post('/:clientId/kyc/reject', authenticateToken, authorizeRoles('admin', 'branch_manager'), async (req, res) => {
+  const { clientId } = req.params;
+  const { reason } = req.body || {};
+  if (!reason || !String(reason).trim()) {
+    return res.status(400).json({ error: 'Rejection reason is required' });
+  }
+  try {
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE clients SET kyc_status = 'Rejected', kyc_verified_at = NULL WHERE id = ?`,
+        [clientId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+    await recordAuditEvent({
+      action: 'KYC_REJECTED',
+      entityType: 'client',
+      entityId: String(clientId),
+      user: req.user,
+      details: { reason }
+    });
+    res.json({ message: 'KYC rejected', kyc_status: 'Rejected' });
+  } catch (error) {
+    console.error('KYC reject error:', error);
+    res.status(500).json({ error: 'Failed to reject KYC' });
   }
 });
 
@@ -386,7 +533,10 @@ router.put('/me/profile', authenticateToken, authorizeRoles('client'), async (re
     marginalizedGroup,
     incomeSource,
     photoPath,
-    groupId
+    groupId,
+    emailNotifications,
+    smsNotifications,
+    paymentReminders
   } = req.body || {};
 
   try {
@@ -397,6 +547,41 @@ router.put('/me/profile', authenticateToken, authorizeRoles('client'), async (re
 
     if (clientId && Number(clientId) !== Number(client.id)) {
       return res.status(403).json({ error: 'You can only update your own profile' });
+    }
+
+    const validation = validateClientRegistrationFields({
+      email,
+      phone,
+      id_number: idNumber,
+      id_type: 'National ID',
+      full_name: [firstName, lastName].filter(Boolean).join(' ')
+    });
+    if (validation.errors.length > 0) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
+
+    const normalizedEmail = validation.normalized.email;
+    const normalizedPhone = validation.normalized.phone;
+    const normalizedId = validation.normalized.id_number || idNumber;
+
+    if (
+      hasEmoji(firstName) ||
+      hasEmoji(lastName) ||
+      hasEmoji(address) ||
+      hasEmoji(groupId)
+    ) {
+      return res.status(400).json({ error: 'Emoji characters are not allowed' });
+    }
+
+    const duplicateFields = await detectDuplicateClientIdentity({
+      name: [firstName, lastName].filter(Boolean).join(' ').trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      id_number: normalizedId,
+      excludeClientId: client.id
+    });
+    if (duplicateFields.length > 0) {
+      return res.status(409).json({ error: duplicateFields[0], details: duplicateFields });
     }
 
     const normalizedName = [firstName, lastName].filter(Boolean).join(' ').trim() || client.name;
@@ -422,14 +607,15 @@ router.put('/me/profile', authenticateToken, authorizeRoles('client'), async (re
     await new Promise((resolve, reject) => {
       db.run(
         `UPDATE clients
-         SET name = ?, email = ?, phone = ?, address = ?, id_number = ?, gender = ?, disability_status = ?, marginalized_group = ?, income_source = ?, photo_path = ?, group_id = ?, kyc_status = ?, kyc_verified_at = ?
+         SET name = ?, email = ?, phone = ?, address = ?, id_number = ?, gender = ?, disability_status = ?, marginalized_group = ?, income_source = ?, photo_path = ?, group_id = ?, kyc_status = ?, kyc_verified_at = ?,
+             notify_email = ?, notify_sms = ?, notify_payment_reminders = ?
          WHERE id = ?`,
         [
           normalizedName,
-          email || null,
-          phone || null,
+          normalizedEmail || null,
+          normalizedPhone,
           address || null,
-          idNumber || null,
+          normalizedId || idNumber || null,
           gender || null,
           disabilityStatus || null,
           marginalizedGroup || null,
@@ -438,6 +624,9 @@ router.put('/me/profile', authenticateToken, authorizeRoles('client'), async (re
           groupId || null,
           newKycStatus,
           kycVerifiedAt,
+          emailNotifications === undefined ? (client.notify_email ?? 1) : (emailNotifications ? 1 : 0),
+          smsNotifications === undefined ? (client.notify_sms ?? 1) : (smsNotifications ? 1 : 0),
+          paymentReminders === undefined ? (client.notify_payment_reminders ?? 1) : (paymentReminders ? 1 : 0),
           client.id
         ],
         function onUpdate(err) {
@@ -478,7 +667,14 @@ router.put('/me/profile', authenticateToken, authorizeRoles('client'), async (re
 
     res.json({
       message: 'Client profile updated successfully',
-      client: updatedClient
+      client: {
+        ...updatedClient,
+        notification_preferences: {
+          emailNotifications: Number(updatedClient.notify_email ?? 1) === 1,
+          smsNotifications: Number(updatedClient.notify_sms ?? 1) === 1,
+          paymentReminders: Number(updatedClient.notify_payment_reminders ?? 1) === 1
+        }
+      }
     });
   } catch (error) {
     console.error('Client profile update error:', error);
@@ -673,6 +869,10 @@ router.post('/registration-requests/:id/approve', authenticateToken, authorizeRo
          <strong>Temporary Password:</strong> ${temporaryPassword}</p>
          <p>Please log in and change your password immediately from profile settings.</p>`
       );
+      await sendWelcomeEmail({
+        name: request.full_name || client?.name || 'Client',
+        email: targetEmail
+      });
     }
 
     await new Promise((resolve, reject) => {
@@ -805,14 +1005,46 @@ router.post('/register', authenticateToken, authorizeRoles('admin', 'branch_mana
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
-  if (!phone || !address || !id_number || !income_source) {
+  const validation = validateClientRegistrationFields({
+    name,
+    email,
+    phone,
+    id_number,
+    id_type,
+    address,
+    income_source
+  });
+  if (validation.errors.length > 0) {
+    return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+  }
+
+  const normalizedEmail = validation.normalized.email;
+  const normalizedPhone = validation.normalized.phone;
+  const normalizedIdNumber = validation.normalized.id_number;
+  const normalizedName = normalizeText(name);
+  const normalizedAddress = normalizeText(address);
+
+  if (!address || !income_source) {
     return res.status(400).json({
-      error: 'Phone, address, ID number, and income source are required to complete client registration.'
+      error: 'Address and income source are required to complete client registration.'
     });
+  }
+  if (
+    hasEmoji(normalizedName) ||
+    hasEmoji(normalizedAddress) ||
+    hasEmoji(income_source)
+  ) {
+    return res.status(400).json({ error: 'Emoji characters are not allowed' });
   }
 
   try {
-    const duplicateFields = await detectDuplicateClientIdentity({ name, email, phone, id_number });
+    const duplicateFields = await detectDuplicateClientIdentity({
+      name,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      id_number: normalizedIdNumber,
+      id_type
+    });
     if (duplicateFields.length > 0) {
       return res.status(409).json({
         error: 'Duplicate client information detected.',
@@ -858,20 +1090,23 @@ router.post('/register', authenticateToken, authorizeRoles('admin', 'branch_mana
       return res.status(422).json(reviewResult);
     }
 
-    const kycStatus = reviewResult.decision === 'APPROVE' ? 'Verified' : 'Pending';
+    const staffCreated = ['loan_staff', 'saving_staff'].includes(req.user.role);
+    const kycStatus = staffCreated
+      ? 'Pending'
+      : (reviewResult.decision === 'APPROVE' ? 'Verified' : 'Pending');
     db.run(
       `INSERT INTO clients
        (name, email, phone, address, gender, disability_status, marginalized_group, id_number, income_source, kyc_status, kyc_verified_at, photo_path, group_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        name,
-        email || null,
-        phone || null,
-        address || null,
+        normalizedName,
+        normalizedEmail || null,
+        normalizedPhone || null,
+        normalizedAddress || null,
         gender || null,
         disability_status || 'None',
         marginalized_group || 'None',
-        id_number || null,
+        normalizedIdNumber || null,
         income_source || null,
         kycStatus,
         kycStatus === 'Verified' ? new Date().toISOString() : null,
@@ -909,9 +1144,12 @@ router.post('/register', authenticateToken, authorizeRoles('admin', 'branch_mana
             details: { kyc_status: client.kyc_status, review: reviewResult }
           }).catch((auditError) => console.error('Client registration audit error:', auditError));
           res.status(201).json({
-            message: 'Client registered successfully',
+            message: staffCreated
+              ? 'Client registered. KYC verification is required before accounts can be activated.'
+              : 'Client registered successfully',
             client,
             review: reviewResult,
+            requires_kyc_verification: staffCreated || kycStatus !== 'Verified',
             username: credentials.username,
             temporary_password: credentials.temporaryPassword
           });
@@ -1010,9 +1248,27 @@ router.get('/:id', authenticateToken, (req, res) => {
 router.put('/:id', authenticateToken, authorizeRoles('admin', 'branch_manager'), (req, res) => {
   const { id } = req.params;
   const { name, email, phone, address, gender, disability_status, marginalized_group, status } = req.body;
+  const emailValidation = validateEmail(email, { required: true });
+  const phoneValidation = validateEthiopianPhone(phone, { required: Boolean(phone) });
+  const fieldErrors = [...emailValidation.errors, ...phoneValidation.errors];
+  if (fieldErrors.length > 0) {
+    return res.status(400).json({ error: fieldErrors[0], details: fieldErrors });
+  }
+
+  const normalizedName = normalizeText(name);
+  const normalizedEmail = emailValidation.normalized;
+  const normalizedPhone = phoneValidation.normalized;
+  if (
+    hasEmoji(normalizedName) ||
+    hasEmoji(normalizedEmail) ||
+    hasEmoji(normalizedPhone) ||
+    hasEmoji(address)
+  ) {
+    return res.status(400).json({ error: 'Emoji characters are not allowed' });
+  }
 
   (async () => {
-    const duplicateFields = await detectDuplicateClientIdentity({ name, email, phone, id_number: null, excludeClientId: Number(id) });
+    const duplicateFields = await detectDuplicateClientIdentity({ name: normalizedName, email: normalizedEmail, phone: normalizedPhone, id_number: null, excludeClientId: Number(id) });
     if (duplicateFields.length > 0) {
       return res.status(409).json({
         error: 'Duplicate client information detected.',
@@ -1022,7 +1278,7 @@ router.put('/:id', authenticateToken, authorizeRoles('admin', 'branch_manager'),
 
     db.run(
       'UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, gender = ?, disability_status = ?, marginalized_group = ?, status = ? WHERE id = ?',
-      [name, normalizeEmail(email) || null, normalizePhone(phone) || null, address, gender, disability_status, marginalized_group, status, id],
+      [normalizedName, normalizedEmail || null, normalizedPhone || null, address, gender, disability_status, marginalized_group, status, id],
       function(err) {
       if (err) {
         console.error('Database error:', err);

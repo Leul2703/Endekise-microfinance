@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Search, Plus, Edit, Wallet, CreditCard, Power, PowerOff, Eye, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
+import { Users, Search, Plus, Edit, Wallet, CreditCard, Power, PowerOff, Eye, RefreshCw, AlertTriangle, Trash2, ShieldCheck } from 'lucide-react';
 import './AdminPages.css';
 import api from '../../utils/api';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { useToast } from '../../context/ToastContext';
+
+const EMOJI_REGEX = /\p{Extended_Pictographic}/gu;
+const stripEmojis = (value) => String(value || '').replace(EMOJI_REGEX, '');
+const hasEmoji = (value) => /\p{Extended_Pictographic}/u.test(String(value || ''));
 
 const EMPTY_CLIENT_FORM = {
   full_name: '',
@@ -48,6 +53,11 @@ const Clients = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteClientModal, setShowDeleteClientModal] = useState(false);
   const [deleteClientJustification, setDeleteClientJustification] = useState('');
+  const [kycReviewClient, setKycReviewClient] = useState(null);
+  const [kycDetails, setKycDetails] = useState(null);
+  const [kycReviewNotes, setKycReviewNotes] = useState('');
+  const [kycReviewLoading, setKycReviewLoading] = useState(false);
+  const [kycReviewSubmitting, setKycReviewSubmitting] = useState(false);
 
   const fetchClients = useCallback(async (showRefresh = false) => {
     if (showRefresh) {
@@ -101,6 +111,18 @@ const Clients = () => {
   const pendingRequests = registrationRequests.filter((r) => !r.status || r.status === 'Pending Admin Review');
   const approvedRequests = registrationRequests.filter((r) => r.status === 'Approved');
   const rejectedRequests = registrationRequests.filter((r) => r.status === 'Rejected');
+  const pendingKycClients = clients.filter((c) => String(c.kyc_status || 'Pending') !== 'Verified');
+
+  const formatKycMissing = (key) => {
+    const labels = {
+      phone: 'Phone number',
+      address: 'Address',
+      identity_document: 'ID document',
+      income_source: 'Income source / proof',
+      client_record: 'Client record'
+    };
+    return labels[key] || key;
+  };
 
   const handleAddClient = async () => {
     const required = ['full_name', 'gender', 'date_of_birth', 'phone', 'address', 'id_number', 'id_type'];
@@ -111,6 +133,29 @@ const Clients = () => {
     }
     if (!String(newClient.id_document || '').trim() && !newClient.id_document_file) {
       warning('Please provide ID document reference or upload ID picture.');
+      return;
+    }
+    if (!String(newClient.email || '').trim()) {
+      warning('Email is required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(newClient.email || '').trim())) {
+      warning('Please enter a valid email address.');
+      return;
+    }
+    if (!/^\d+$/.test(String(newClient.phone || '').trim())) {
+      warning('Phone number must contain digits only.');
+      return;
+    }
+    if (
+      hasEmoji(newClient.full_name) ||
+      hasEmoji(newClient.address) ||
+      hasEmoji(newClient.id_number) ||
+      hasEmoji(newClient.id_document) ||
+      hasEmoji(newClient.income_source) ||
+      hasEmoji(newClient.email)
+    ) {
+      warning('Emoji characters are not allowed.');
       return;
     }
     const monthlyIncome = Number(newClient.monthly_income);
@@ -132,7 +177,7 @@ const Clients = () => {
         monthly_income: newClient.monthly_income,
         requested_loan_amount: newClient.requested_loan_amount || 0,
         income_source: newClient.income_source || '',
-        email: newClient.email || '',
+        email: newClient.email.trim(),
         id_document_file: newClient.id_document_file,
         profile_photo_file: newClient.profile_photo_file
       });
@@ -225,6 +270,70 @@ const Clients = () => {
     }
   };
 
+  const closeKycReviewModal = () => {
+    setKycReviewClient(null);
+    setKycDetails(null);
+    setKycReviewNotes('');
+    setKycReviewLoading(false);
+    setKycReviewSubmitting(false);
+  };
+
+  const openKycReviewModal = async (client) => {
+    setKycReviewClient(client);
+    setKycReviewNotes('KYC documents reviewed and approved.');
+    setKycDetails(null);
+    setKycReviewLoading(true);
+    try {
+      const details = await api.getClientKycStatus(client.id);
+      setKycDetails(details);
+    } catch (err) {
+      error(err.message || 'Failed to load KYC details');
+      closeKycReviewModal();
+    } finally {
+      setKycReviewLoading(false);
+    }
+  };
+
+  const handleVerifyClientKyc = async () => {
+    if (!kycReviewClient?.id) return;
+    if (kycDetails && !kycDetails.fieldsComplete) {
+      warning(`Cannot verify: missing ${kycDetails.missing?.join(', ') || 'requirements'}`);
+      return;
+    }
+    try {
+      setKycReviewSubmitting(true);
+      const data = await api.verifyClientKyc(kycReviewClient.id, kycReviewNotes.trim() || undefined);
+      if (data?.credentials_created) {
+        success(`KYC verified for ${kycReviewClient.name}. Login credentials were emailed to the client.`);
+      } else {
+        success(`KYC verified for ${kycReviewClient.name}`);
+      }
+      closeKycReviewModal();
+      fetchClients(true);
+    } catch (err) {
+      error(err.message || 'Failed to verify KYC');
+      setKycReviewSubmitting(false);
+    }
+  };
+
+  const handleRejectClientKyc = async () => {
+    if (!kycReviewClient?.id) return;
+    if (!kycReviewNotes.trim()) {
+      warning('Rejection reason is required.');
+      return;
+    }
+    try {
+      setKycReviewSubmitting(true);
+      await api.rejectClientKyc(kycReviewClient.id, kycReviewNotes.trim());
+      warning(`KYC rejected for ${kycReviewClient.name}`);
+      closeKycReviewModal();
+      fetchClients(true);
+    } catch (err) {
+      error(err.message || 'Failed to reject KYC');
+      setKycReviewSubmitting(false);
+    }
+  };
+
   const openEditClientModal = (client) => {
     setSelectedClient(client);
     setEditClient({
@@ -241,6 +350,29 @@ const Clients = () => {
 
   const handleUpdateClient = async () => {
     if (!selectedClient?.id) return;
+    if (!String(editClient.email || '').trim()) {
+      warning('Email is required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(editClient.email || '').trim())) {
+      warning('Please enter a valid email address.');
+      return;
+    }
+    if (editClient.phone && !/^\d+$/.test(String(editClient.phone || '').trim())) {
+      warning('Phone number must contain digits only.');
+      return;
+    }
+    if (
+      hasEmoji(editClient.name) ||
+      hasEmoji(editClient.email) ||
+      hasEmoji(editClient.phone) ||
+      hasEmoji(editClient.address) ||
+      hasEmoji(editClient.id_number) ||
+      hasEmoji(editClient.income_source)
+    ) {
+      warning('Emoji characters are not allowed.');
+      return;
+    }
     try {
       await api.updateClient(selectedClient.id, {
         ...editClient,
@@ -397,6 +529,13 @@ const Clients = () => {
         </button>
       </div>
 
+      {pendingKycClients.length > 0 && (
+        <div className="info-card kyc-pending-banner" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ShieldCheck size={20} />
+          <span><strong>{pendingKycClients.length}</strong> client{pendingKycClients.length === 1 ? '' : 's'} awaiting KYC verification.</span>
+        </div>
+      )}
+
       {registrationRequests.length > 0 && (
         <div className="table-container" style={{ marginBottom: '1.5rem' }}>
           <div style={{ padding: '1rem 1rem 0.5rem', fontWeight: 600, color: '#1f2937' }}>
@@ -427,8 +566,8 @@ const Clients = () => {
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                      {request.id_document_path ? <a href={`http://localhost:5000${request.id_document_path}`} target="_blank" rel="noreferrer">View ID</a> : <span>-</span>}
-                      {request.photo_path ? <a href={`http://localhost:5000${request.photo_path}`} target="_blank" rel="noreferrer">View Photo</a> : <span>-</span>}
+                      {request.id_document_path ? <a href={resolveMediaUrl(request.id_document_path)} target="_blank" rel="noreferrer">View ID</a> : <span>-</span>}
+                      {request.photo_path ? <a href={resolveMediaUrl(request.photo_path)} target="_blank" rel="noreferrer">View Photo</a> : <span>-</span>}
                     </div>
                   </td>
                   <td>{request.status || 'Pending Admin Review'}</td>
@@ -520,10 +659,10 @@ const Clients = () => {
               <p><strong>System Reason:</strong> {reviewingRequest.reason || '-'}</p>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                 {reviewingRequest.id_document_path && (
-                  <a className="btn-secondary" href={`http://localhost:5000${reviewingRequest.id_document_path}`} target="_blank" rel="noreferrer">Open ID Image</a>
+                  <a className="btn-secondary" href={resolveMediaUrl(reviewingRequest.id_document_path)} target="_blank" rel="noreferrer">Open ID Image</a>
                 )}
                 {reviewingRequest.photo_path && (
-                  <a className="btn-secondary" href={`http://localhost:5000${reviewingRequest.photo_path}`} target="_blank" rel="noreferrer">Open Profile Photo</a>
+                  <a className="btn-secondary" href={resolveMediaUrl(reviewingRequest.photo_path)} target="_blank" rel="noreferrer">Open Profile Photo</a>
                 )}
               </div>
               <div className="form-group">
@@ -564,7 +703,29 @@ const Clients = () => {
           </div>
         </div>
       ) : (
-        <div className="table-container">
+        <>
+        <div className="mobile-card-list">
+          {filteredClients.map((client) => (
+            <div className="mobile-record-card" key={`mobile-${client.id}`}>
+              <div className="mobile-record-header">
+                <strong>{client.name}</strong>
+                <span className={`status ${client.status === 'Active' ? 'active' : 'inactive'}`}>{client.status || 'Active'}</span>
+              </div>
+              <p className="mobile-record-meta">#{client.id} · {client.phone || 'No phone'}</p>
+              <p className="mobile-record-meta">{client.email || 'No email'}</p>
+              <span className={`status ${getKycTone(client.kyc_status)}`}>{client.kyc_status || 'Pending'}</span>
+              <div className="mobile-record-actions">
+                {client.kyc_status !== 'Verified' && (
+                  <button type="button" className="btn-sm primary" onClick={() => openKycReviewModal(client)}>Review KYC</button>
+                )}
+                <button type="button" className="btn-sm secondary" onClick={() => handleViewAccounts(client)}>Accounts</button>
+                <button type="button" className="btn-sm secondary" onClick={() => openEditClientModal(client)}>Edit</button>
+                <button type="button" className="btn-sm secondary" onClick={() => handleAddAccount(client)}>Add Account</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="table-container desktop-table-only">
           <table className="data-table">
             <thead>
               <tr>
@@ -602,6 +763,11 @@ const Clients = () => {
                     </span>
                   </td>
                   <td>
+                    {client.kyc_status !== 'Verified' && (
+                      <button className="btn-icon edit" title="Review KYC" onClick={() => openKycReviewModal(client)}>
+                        <ShieldCheck size={18} />
+                      </button>
+                    )}
                     <button className="btn-icon edit" title="View Accounts" onClick={() => handleViewAccounts(client)}>
                       <Eye size={18} />
                     </button>
@@ -620,6 +786,7 @@ const Clients = () => {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {showAddClientModal && (
@@ -666,16 +833,18 @@ const Clients = () => {
                 <input
                   type="email"
                   value={newClient.email}
-                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, email: stripEmojis(e.target.value) })}
                   placeholder="Enter email"
+                  required
                 />
               </div>
               <div className="form-group">
                 <label>Phone <span className="required">*</span></label>
                 <input
                   type="tel"
+                  inputMode="numeric"
                   value={newClient.phone}
-                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value.replace(/\D/g, '') })}
                   placeholder="Enter phone number"
                   required
                 />
@@ -807,27 +976,27 @@ const Clients = () => {
             <div className="modal-body">
               <div className="form-group">
                 <label>Full Name</label>
-                <input type="text" value={editClient.name} onChange={(e) => setEditClient({ ...editClient, name: e.target.value })} />
+                <input type="text" value={editClient.name} onChange={(e) => setEditClient({ ...editClient, name: stripEmojis(e.target.value) })} />
               </div>
               <div className="form-group">
                 <label>Email</label>
-                <input type="email" value={editClient.email} onChange={(e) => setEditClient({ ...editClient, email: e.target.value })} />
+                <input type="email" value={editClient.email} onChange={(e) => setEditClient({ ...editClient, email: stripEmojis(e.target.value) })} required />
               </div>
               <div className="form-group">
                 <label>Phone</label>
-                <input type="text" value={editClient.phone} onChange={(e) => setEditClient({ ...editClient, phone: e.target.value })} />
+                <input type="text" inputMode="numeric" value={editClient.phone} onChange={(e) => setEditClient({ ...editClient, phone: e.target.value.replace(/\D/g, '') })} />
               </div>
               <div className="form-group">
                 <label>Address</label>
-                <input type="text" value={editClient.address} onChange={(e) => setEditClient({ ...editClient, address: e.target.value })} />
+                <input type="text" value={editClient.address} onChange={(e) => setEditClient({ ...editClient, address: stripEmojis(e.target.value) })} />
               </div>
               <div className="form-group">
                 <label>ID Number</label>
-                <input type="text" value={editClient.id_number} onChange={(e) => setEditClient({ ...editClient, id_number: e.target.value })} />
+                <input type="text" value={editClient.id_number} onChange={(e) => setEditClient({ ...editClient, id_number: stripEmojis(e.target.value) })} />
               </div>
               <div className="form-group">
                 <label>Income Source</label>
-                <input type="text" value={editClient.income_source} onChange={(e) => setEditClient({ ...editClient, income_source: e.target.value })} />
+                <input type="text" value={editClient.income_source} onChange={(e) => setEditClient({ ...editClient, income_source: stripEmojis(e.target.value) })} />
               </div>
               <div className="modal-actions">
                 <button className="btn-secondary" onClick={() => setShowEditClientModal(false)}>Cancel</button>
@@ -978,6 +1147,124 @@ const Clients = () => {
                 <button className="btn-primary" onClick={handleCreateAccount}>
                   <Plus size={18} />
                   Create Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {kycReviewClient && (
+        <div className="modal-overlay">
+          <div className="modal modal-wide kyc-review-modal">
+            <div className="modal-header">
+              <h2>Review client KYC</h2>
+              <button type="button" onClick={closeKycReviewModal} className="modal-close" disabled={kycReviewSubmitting}>×</button>
+            </div>
+            <div className="modal-body">
+              <p><strong>Client:</strong> {kycReviewClient.name} <span className="text-muted">#{kycReviewClient.id}</span></p>
+              <p>
+                <strong>Status:</strong>{' '}
+                <span className={`status ${getKycTone(kycDetails?.status || kycReviewClient.kyc_status)}`}>
+                  {kycDetails?.status || kycReviewClient.kyc_status || 'Pending'}
+                </span>
+              </p>
+
+              {kycReviewLoading ? (
+                <div className="kyc-review-loading">
+                  <RefreshCw size={28} className="spinning" />
+                  <p>Loading KYC details…</p>
+                </div>
+              ) : kycDetails ? (
+                <>
+                  <div className="kyc-checklist">
+                    <h3>Requirements</h3>
+                    <ul>
+                      {['phone', 'address', 'identity_document', 'income_source'].map((key) => {
+                        const missing = (kycDetails.missing || []).includes(key);
+                        return (
+                          <li key={key} className={missing ? 'kyc-check-missing' : 'kyc-check-ok'}>
+                            {missing ? '○' : '✓'} {formatKycMissing(key)}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {!kycDetails.fieldsComplete && (
+                      <p className="kyc-review-warning">Complete all requirements before verifying.</p>
+                    )}
+                  </div>
+
+                  <div className="kyc-client-summary">
+                    <p><strong>Phone:</strong> {kycDetails.client?.phone || '—'}</p>
+                    <p><strong>Address:</strong> {kycDetails.client?.address || '—'}</p>
+                    <p><strong>ID number:</strong> {kycDetails.client?.id_number || '—'}</p>
+                    <p><strong>Income source:</strong> {kycDetails.client?.income_source || '—'}</p>
+                  </div>
+
+                  <div className="kyc-documents-section">
+                    <h3>Documents & photos</h3>
+                    <div className="kyc-review-grid">
+                      {kycDetails.client?.photo_path && (
+                        <a className="kyc-doc-card" href={resolveMediaUrl(kycDetails.client.photo_path)} target="_blank" rel="noreferrer">
+                          <img src={resolveMediaUrl(kycDetails.client.photo_path)} alt="Profile" />
+                          <span>Profile photo</span>
+                        </a>
+                      )}
+                      {(kycDetails.documents || []).map((doc) => (
+                        <a
+                          key={doc.id}
+                          className="kyc-doc-card"
+                          href={resolveMediaUrl(doc.file_path)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {/\.(jpe?g|png|gif|webp)$/i.test(String(doc.file_name || doc.file_path || '')) ? (
+                            <img src={resolveMediaUrl(doc.file_path)} alt={doc.type || 'Document'} />
+                          ) : (
+                            <div className="kyc-doc-placeholder">{doc.file_name || 'Document'}</div>
+                          )}
+                          <span>{doc.type || doc.file_name || 'Document'}</span>
+                        </a>
+                      ))}
+                      {!kycDetails.client?.photo_path && !(kycDetails.documents || []).length && (
+                        <p className="text-muted">No uploaded documents yet.</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label>Verification notes / rejection reason</label>
+                <textarea
+                  rows={3}
+                  value={kycReviewNotes}
+                  onChange={(e) => setKycReviewNotes(e.target.value)}
+                  placeholder="Notes for approval, or required reason if rejecting"
+                  disabled={kycReviewLoading || kycReviewSubmitting}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={closeKycReviewModal} disabled={kycReviewSubmitting}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleRejectClientKyc}
+                  disabled={kycReviewLoading || kycReviewSubmitting}
+                >
+                  Reject KYC
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleVerifyClientKyc}
+                  disabled={kycReviewLoading || kycReviewSubmitting || (kycDetails && !kycDetails.fieldsComplete)}
+                >
+                  <ShieldCheck size={18} />
+                  {kycReviewSubmitting ? 'Saving…' : 'Verify KYC'}
                 </button>
               </div>
             </div>

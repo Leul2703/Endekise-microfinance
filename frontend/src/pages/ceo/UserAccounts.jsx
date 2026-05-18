@@ -80,6 +80,10 @@ const UserAccounts = () => {
       <div className="page-header">
         <h1>User Accounts</h1>
         <p>Review registered system users and account status after CEO login.</p>
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span className="inline-meta">Staff: {filteredStaffUsers.length}</span>
+          <span className="inline-meta">Clients: {filteredClientUsers.length}</span>
+        </div>
       </div>
 
       <div className="info-card" style={{ marginBottom: '1.5rem' }}>
@@ -92,7 +96,7 @@ const UserAccounts = () => {
         </div>
       </div>
 
-      <div className="page-actions">
+      <div className="page-actions sticky-actions">
         <div className="search-bar">
           <Search size={20} />
           <input
@@ -136,6 +140,11 @@ const UserAccounts = () => {
       <>
       <div className="table-container" style={{ marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '1rem' }}>Staff Users</h3>
+        {filteredStaffUsers.length === 0 ? (
+          <div className="empty-state">
+            <p>No staff user accounts matched your search.</p>
+          </div>
+        ) : (
         <table className="data-table">
           <thead>
             <tr>
@@ -150,16 +159,7 @@ const UserAccounts = () => {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Loading user accounts...</td>
-              </tr>
-            ) : filteredStaffUsers.length === 0 ? (
-              <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>No user accounts matched your search.</td>
-              </tr>
-            ) : (
-              filteredStaffUsers.map((user) => (
+            {filteredStaffUsers.map((user) => (
                 <tr key={user.id}>
                   <td>#{user.id}</td>
                   <td>{user.name}</td>
@@ -178,13 +178,18 @@ const UserAccounts = () => {
                     </button>
                   </td>
                 </tr>
-              ))
-            )}
+              ))}
           </tbody>
         </table>
+        )}
       </div>
       <div className="table-container">
         <h3 style={{ margin: '1rem' }}>Clients</h3>
+        {filteredClientUsers.length === 0 ? (
+          <div className="empty-state">
+            <p>No clients matched your search.</p>
+          </div>
+        ) : (
         <table className="data-table">
           <thead>
             <tr>
@@ -197,12 +202,7 @@ const UserAccounts = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredClientUsers.length === 0 ? (
-              <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No clients matched your search.</td>
-              </tr>
-            ) : (
-              filteredClientUsers.map((client) => (
+            {filteredClientUsers.map((client) => (
                 <tr key={`client-${client.id}`}>
                   <td>#{client.id}</td>
                   <td>{client.name}</td>
@@ -215,10 +215,10 @@ const UserAccounts = () => {
                     </span>
                   </td>
                 </tr>
-              ))
-            )}
+              ))}
           </tbody>
         </table>
+        )}
       </div>
       </>
       )}

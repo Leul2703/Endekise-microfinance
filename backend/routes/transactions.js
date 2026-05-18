@@ -9,8 +9,17 @@ const { assertClientKycEligible, evaluateAmlAlerts, LARGE_TRANSACTION_THRESHOLD 
 const { recordAuditEvent } = require('../utils/auditTrail');
 const { sendEmailReminder } = require('../utils/notificationService');
 const { emitLoanUpdated, emitBalanceUpdated } = require('../utils/realtime');
+const { recordGrowthTermDeposit } = require('../utils/growthTermDeposits');
 
 const MINIMUM_SAVING_DEPOSIT = 100;
+
+const trackGrowthTermDeposit = async (accountId, amount) => {
+  try {
+    await recordGrowthTermDeposit(accountId, amount);
+  } catch (err) {
+    console.warn('Growth Term deposit tracking failed:', err?.message || err);
+  }
+};
 const LATE_PENALTY_RATE = Number(process.env.LOAN_LATE_PENALTY_RATE || 1);
 
 const runGet = (sql, params = []) => new Promise((resolve, reject) => {
@@ -347,6 +356,7 @@ router.post('/deposit', authenticateToken, authorizeRoles('admin', 'branch_manag
       savingsAccountId: account_id,
       balance: balanceAfter
     });
+    await trackGrowthTermDeposit(account_id, numericAmount);
 
     const clientContact = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);
     if (clientContact?.email) {
@@ -679,7 +689,7 @@ router.post('/payment', authenticateToken, authorizeRoles('admin', 'branch_manag
       `SELECT *
        FROM payment_schedule
        WHERE loan_id = ?
-         AND status IN ('Pending', 'Partial')
+         AND status IN ('Pending', 'Partial', 'Overdue')
        ORDER BY due_date ASC, created_at ASC`,
       [account_id]
     );
@@ -850,6 +860,22 @@ router.post('/payment', authenticateToken, authorizeRoles('admin', 'branch_manag
       savingsAccountId: linkedSavingsAccountId,
       balance: savingsBalanceAfter
     });
+
+    // Repayment receipt (always, best-effort)
+    try {
+      const client = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);
+      if (client?.email) {
+        await sendEmailReminder({
+          to: client.email,
+          subject: `Repayment Receipt - ${account_id}`,
+          text: `Dear ${client.name},\n\nWe received your loan repayment.\nLoan: ${account_id}\nAmount: ${effectivePaymentAmount.toLocaleString()} ETB\nLoan balance: ${balanceAfter.toLocaleString()} ETB\nReference: ${transferReference}\nDate: ${transactionTimestamp}\n\nThank you,\nEdekise Microfinance`,
+          category: 'repayment_receipt',
+          metadata: { loan_id: account_id, transaction_id: transactionId, reference: transferReference }
+        });
+      }
+    } catch (e) {
+      console.warn('Repayment receipt email failed:', e?.message || e);
+    }
 
     if (balanceAfter <= 0 || totalPenaltyApplied > 0) {
       const client = await runGet('SELECT name, email FROM clients WHERE id = ?', [account.client_id]);

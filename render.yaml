@@ -1,0 +1,24 @@
+# Render deployment configuration for Edekise backend
+# Update placeholder values (FRONTEND_URL, DATABASE_URL, JWT_SECRET) in the Render dashboard after linking the repo.
+
+services:
+  - type: web
+    name: edekise-backend
+    env: node
+    region: oregon
+    plan: free
+    branch: main
+    path: backend
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '5000'
+      - key: FRONTEND_URL
+        value: 'https://your-vercel-app.vercel.app' # replace after Vercel deploy
+      - key: DATABASE_URL
+        value: 'postgres://username:password@host:5432/edekise_microfinance' # replace with a managed DB
+      - key: JWT_SECRET
+        value: 'replace_this_with_secure_random_value'

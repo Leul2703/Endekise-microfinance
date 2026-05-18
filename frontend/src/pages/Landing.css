@@ -619,6 +619,23 @@
   color: #fbbf24;
 }
 
+.footer-section .footer-link-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: block;
+  text-align: left;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
+  font: inherit;
+}
+
+.footer-section .footer-link-button:hover {
+  color: #fbbf24;
+}
+
 .footer-bottom {
   text-align: center;
   padding-top: 2rem;

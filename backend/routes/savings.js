@@ -4,6 +4,7 @@ const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { db } = require('../config/database');
 const { getUserRecord, resolveClientProfileByUser } = require('../utils/clientProfile');
 const { withTransaction } = require('../utils/transactionWrapper');
+const { ensureGrowthTermSchema } = require('../utils/growthTermDeposits');
 
 const SAVINGS_OPTIONS = [
   {
@@ -168,11 +169,14 @@ router.post('/apply', authenticateToken, authorizeRoles('client'), async (req, r
 
     const approvalRequestId = `APR-${Date.now()}`;
 
+    const monthlyDepositAmount = option.type === 'Growth Term Saving' ? numericAmount : null;
+    await ensureGrowthTermSchema();
+
     await withTransaction(async () => {
       await runExec(
-        `INSERT INTO savings_accounts (id, client_id, amount, type, interest_rate, maturity_date, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [savingsId, client.id, numericAmount, option.type, appliedInterestRate, maturityDate, 'Pending']
+        `INSERT INTO savings_accounts (id, client_id, amount, type, interest_rate, maturity_date, status, monthly_deposit_amount)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [savingsId, client.id, numericAmount, option.type, appliedInterestRate, maturityDate, 'Pending', monthlyDepositAmount]
       );
 
       await runExec(

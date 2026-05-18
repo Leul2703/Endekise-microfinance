@@ -178,7 +178,23 @@ const ClientDashboard = () => {
                   View Balance
                 </button>
               </div>
-              <div className="table-container">
+              <div className="mobile-card-list">
+                {loanRows.length === 0 ? (
+                  <p style={{ color: '#6b7280', padding: '1rem 0' }}>No active loan accounts found.</p>
+                ) : loanRows.map((loan) => (
+                  <div className="mobile-record-card" key={`loan-mobile-${loan.account_number}`}>
+                    <div className="mobile-record-header">
+                      <strong>{loan.account_number}</strong>
+                      <span className="status pending">Loan</span>
+                    </div>
+                    <div className="schedule-mobile-row">
+                      <span>Outstanding</span>
+                      <strong>{formatCurrency(loan.available_credit_or_outstanding_loan_balance)}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="table-container desktop-table-only">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -212,7 +228,21 @@ const ClientDashboard = () => {
                   Manage
                 </button>
               </div>
-              <div className="table-container">
+              <div className="mobile-card-list">
+                {activeSavingsRows.length === 0 ? (
+                  <p style={{ color: '#6b7280', padding: '1rem 0' }}>No active savings accounts found.</p>
+                ) : activeSavingsRows.map((account) => (
+                  <div className="mobile-record-card" key={`savings-mobile-${account.id}`}>
+                    <div className="mobile-record-header">
+                      <strong>{account.id}</strong>
+                      <span className="status active">{account.status}</span>
+                    </div>
+                    <div className="schedule-mobile-row"><span>Type</span><span>{account.type}</span></div>
+                    <div className="schedule-mobile-row"><span>Balance</span><strong>{formatCurrency(account.amount)}</strong></div>
+                  </div>
+                ))}
+              </div>
+              <div className="table-container desktop-table-only">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -270,7 +300,21 @@ const ClientDashboard = () => {
 
             <div className="section-card">
               <h2>Recent Savings Transactions</h2>
-              <div className="table-container">
+              <div className="mobile-card-list">
+                {transactions.length === 0 ? (
+                  <p style={{ color: '#6b7280', padding: '1rem 0' }}>No transactions found.</p>
+                ) : transactions.slice(0, 8).map((txn) => (
+                  <div className="mobile-record-card" key={`txn-mobile-${txn.id}`}>
+                    <div className="mobile-record-header">
+                      <strong>{txn.transaction_type}</strong>
+                      <span>{formatCurrency(txn.amount)}</span>
+                    </div>
+                    <p className="mobile-record-meta">{txn.id}</p>
+                    <p className="mobile-record-meta">{formatDateTime(txn.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="table-container desktop-table-only">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -308,11 +352,25 @@ const ClientDashboard = () => {
           <div className="modal">
             <div className="modal-header">
               <h2>Account Balance Summary</h2>
-              <button onClick={() => setShowBalanceModal(false)} className="modal-close">x</button>
+              <button type="button" onClick={() => setShowBalanceModal(false)} className="modal-close" aria-label="Close">×</button>
             </div>
             <div className="modal-body">
               <div className="balance-summary">
                 {summaryAccounts.length > 0 ? (
+                  <>
+                  <div className="mobile-card-list">
+                    {summaryAccounts.map((account) => (
+                      <div className="mobile-record-card" key={`balance-mobile-${account.account_type}-${account.account_number}`}>
+                        <div className="mobile-record-header">
+                          <strong>{account.account_type}</strong>
+                          <span>{account.account_number}</span>
+                        </div>
+                        <div className="schedule-mobile-row"><span>Deposit balance</span><span>{formatCurrency(account.current_deposit_balance)}</span></div>
+                        <div className="schedule-mobile-row"><span>Loan / credit</span><strong>{formatCurrency(account.available_credit_or_outstanding_loan_balance)}</strong></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="table-container desktop-table-only">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -333,6 +391,8 @@ const ClientDashboard = () => {
                       ))}
                     </tbody>
                   </table>
+                  </div>
+                  </>
                 ) : (
                   <p className="balance-note">{noAccountsMessage}</p>
                 )}

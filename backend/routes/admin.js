@@ -17,10 +17,10 @@ const buildDefaultSettings = () => ({
     name: process.env.DB_NAME || process.env.PGDATABASE || 'edekise_microfinance',
     ssl_enabled: process.env.PG_SSL === 'true',
   },
-  notifications: {
-    frontend_url: process.env.FRONTEND_URL || 'http://localhost:5173',
-    email_host: process.env.EMAIL_HOST || 'Not configured',
-    email_port: process.env.EMAIL_PORT || 'Not configured',
+    notifications: {
+    frontend_url: process.env.FRONTEND_URL || 'http://192.168.137.1:3000',
+    email_host: process.env.EMAIL_HOST || process.env.MAIL_HOST || 'Not configured',
+    email_port: process.env.EMAIL_PORT || process.env.MAIL_PORT || 'Not configured',
     email_from: process.env.EMAIL_FROM || process.env.SMTP_FROM || 'Not configured',
   },
   security: {

@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const { db } = require('../config/database');
 const { buildRepaymentSchedule } = require('../utils/loanWorkflow');
+const { buildPenaltySchedule } = require('../utils/loanPenalties');
 
 // Get payment schedule for a loan
 router.get('/loan/:loanId', authenticateToken, (req, res) => {
@@ -16,7 +17,33 @@ router.get('/loan/:loanId', authenticateToken, (req, res) => {
         console.error('Database error:', err);
         return res.status(500).json({ error: 'Database error' });
       }
-      res.json(schedule);
+      const penaltySchedule = buildPenaltySchedule(schedule || []);
+      res.json({
+        schedule: penaltySchedule.schedule,
+        penalty_schedule: {
+          penalty_rate_percent: penaltySchedule.penalty_rate_percent,
+          description: penaltySchedule.description,
+          total_penalty_outstanding: penaltySchedule.total_penalty_outstanding,
+          total_installments_overdue: penaltySchedule.total_installments_overdue
+        }
+      });
+    }
+  );
+});
+
+// Penalty schedule for a loan (late fees + partial balances)
+router.get('/loan/:loanId/penalties', authenticateToken, (req, res) => {
+  const { loanId } = req.params;
+
+  db.all(
+    'SELECT * FROM payment_schedule WHERE loan_id = ? ORDER BY due_date ASC',
+    [loanId],
+    (err, schedule) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(buildPenaltySchedule(schedule || []));
     }
   );
 });

@@ -147,6 +147,9 @@ const Approvals = () => {
         <div>
           <h1>Approval Management</h1>
           <p>Review and approve pending requests requiring authorization</p>
+          <div style={{ marginTop: '0.75rem' }}>
+            <span className="inline-meta">Pending requests: {approvals.length}</span>
+          </div>
         </div>
         <button 
           className="btn-secondary" 
@@ -189,8 +192,8 @@ const Approvals = () => {
           </div>
         </div>
       ) : approvals.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
-          <Clock size={48} style={{ marginBottom: '1rem' }} />
+        <div className="empty-state">
+          <Clock size={48} />
           <p>No pending approvals</p>
         </div>
       ) : (

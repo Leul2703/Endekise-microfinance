@@ -4,6 +4,10 @@ import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 
+const EMOJI_REGEX = /\p{Extended_Pictographic}/gu;
+const stripEmojis = (value) => String(value || '').replace(EMOJI_REGEX, '');
+const hasEmoji = (value) => /\p{Extended_Pictographic}/u.test(String(value || ''));
+
 const UserManagement = () => {
   const { success, error, warning } = useToast();
   const [users, setUsers] = useState([]);
@@ -151,6 +155,16 @@ const UserManagement = () => {
       warning('Please enter a valid email address');
       return;
     }
+    if (
+      hasEmoji(newUser.full_name) ||
+      hasEmoji(newUser.username) ||
+      hasEmoji(newUser.email) ||
+      hasEmoji(newUser.password) ||
+      hasEmoji(newUser.branch_id)
+    ) {
+      warning('Emoji characters are not allowed.');
+      return;
+    }
     if (newUser.phone && !/^\d+$/.test(newUser.phone)) {
       warning('Phone number must contain digits only.');
       return;
@@ -214,6 +228,15 @@ const UserManagement = () => {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editUser.email)) {
       warning('Please enter a valid email address');
+      return;
+    }
+    if (
+      hasEmoji(editUser.full_name) ||
+      hasEmoji(editUser.username) ||
+      hasEmoji(editUser.email) ||
+      hasEmoji(editUser.branch_id)
+    ) {
+      warning('Emoji characters are not allowed.');
       return;
     }
     if (editUser.phone && !/^\d+$/.test(editUser.phone)) {
@@ -392,9 +415,14 @@ const UserManagement = () => {
       <div className="page-header">
         <h1>User Management</h1>
         <p>Create and manage staff users with role-based access</p>
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span className="inline-meta">Staff users: {users.filter((u) => u.role !== 'client').length}</span>
+          <span className="inline-meta">Filtered: {filteredUsers.length}</span>
+          <span className="inline-meta">Archived: {archivedUsers.length}</span>
+        </div>
       </div>
 
-      <div className="page-actions">
+      <div className="page-actions sticky-actions">
         <div className="search-bar">
           <Search size={20} />
           <input
@@ -473,20 +501,25 @@ const UserManagement = () => {
         </div>
       ) : (
         <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Branch</th>
-                <th>Status</th>
-                <th>Last Login</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => (
-                <tr key={user.id}>
+          {filteredUsers.length === 0 ? (
+            <div className="empty-state">
+              <p>No users match the current search and filters.</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Branch</th>
+                  <th>Status</th>
+                  <th>Last Login</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ 
@@ -566,10 +599,11 @@ const UserManagement = () => {
                       </button>
                     </div>
                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -588,7 +622,7 @@ const UserManagement = () => {
                   <input
                     type="text"
                     value={newUser.full_name}
-                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                    onChange={(e) => setNewUser({ ...newUser, full_name: stripEmojis(e.target.value) })}
                     placeholder="Enter full name"
                   />
                 </div>
@@ -597,7 +631,7 @@ const UserManagement = () => {
                   <input
                     type="text"
                     value={newUser.username}
-                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    onChange={(e) => setNewUser({ ...newUser, username: stripEmojis(e.target.value) })}
                     placeholder="Enter username"
                   />
                 </div>
@@ -608,7 +642,7 @@ const UserManagement = () => {
                     <input
                       type="email"
                       value={newUser.email}
-                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      onChange={(e) => setNewUser({ ...newUser, email: stripEmojis(e.target.value) })}
                       placeholder="Enter email address"
                     />
                   </div>
@@ -630,7 +664,7 @@ const UserManagement = () => {
                     <input
                       type="password"
                       value={newUser.password}
-                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      onChange={(e) => setNewUser({ ...newUser, password: stripEmojis(e.target.value) })}
                       placeholder="Enter password"
                     />
                   </div>
@@ -655,7 +689,7 @@ const UserManagement = () => {
                     <input
                       type="text"
                       value={newUser.branch_id}
-                      onChange={(e) => setNewUser({ ...newUser, branch_id: e.target.value })}
+                      onChange={(e) => setNewUser({ ...newUser, branch_id: stripEmojis(e.target.value) })}
                       placeholder="Enter branch ID (optional)"
                     />
                   </div>
@@ -785,7 +819,7 @@ const UserManagement = () => {
                   <input
                     type="text"
                     value={editUser.full_name}
-                    onChange={(e) => setEditUser({ ...editUser, full_name: e.target.value })}
+                    onChange={(e) => setEditUser({ ...editUser, full_name: stripEmojis(e.target.value) })}
                   />
                 </div>
                 <div className="form-group">
@@ -793,7 +827,7 @@ const UserManagement = () => {
                   <input
                     type="text"
                     value={editUser.username}
-                    onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
+                    onChange={(e) => setEditUser({ ...editUser, username: stripEmojis(e.target.value) })}
                   />
                 </div>
                 <div className="form-group">
@@ -801,7 +835,7 @@ const UserManagement = () => {
                   <input
                     type="email"
                     value={editUser.email}
-                    onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                    onChange={(e) => setEditUser({ ...editUser, email: stripEmojis(e.target.value) })}
                   />
                 </div>
                 <div className="form-group">
@@ -841,7 +875,7 @@ const UserManagement = () => {
                   <input
                     type="text"
                     value={editUser.branch_id}
-                    onChange={(e) => setEditUser({ ...editUser, branch_id: e.target.value })}
+                    onChange={(e) => setEditUser({ ...editUser, branch_id: stripEmojis(e.target.value) })}
                   />
                 </div>
               </div>

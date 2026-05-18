@@ -198,6 +198,8 @@ export const api = {
   // NOTE: backend exposes loan listing at `/loans`; previous value referenced a non-existent `/clients/loans-list`.
   getLoans: () => fetchWithAuth('/loans'),
   getPendingLoans: () => fetchWithAuth('/loans/approvals/pending'),
+  getLoanSavingsPolicy: () => fetchWithAuth('/loans/policy/savings-requirement'),
+  getLoanReviewPackage: (loanId) => fetchWithAuth(`/loans/${loanId}/review-package`),
   approveLoan: (id, justification) => fetchWithAuth(`/loans/${id}/approve`, {
     method: 'POST',
     body: JSON.stringify({ justification })
@@ -316,6 +318,18 @@ export const api = {
     body: JSON.stringify(payload || {})
   }),
   getMyClientProfile: () => fetchWithAuth('/clients/me/profile'),
+  getMyDepositSchedule: () => fetchWithAuth('/clients/me/deposit-schedule'),
+  getPendingKycClients: () => fetchWithAuth('/clients/kyc/pending'),
+  getClientKycStatus: (clientId) => fetchWithAuth(`/clients/${clientId}/kyc/status`),
+  submitClientKyc: (clientId) => fetchWithAuth(`/clients/${clientId}/kyc/submit`, { method: 'POST' }),
+  verifyClientKyc: (clientId, notes) => fetchWithAuth(`/clients/${clientId}/kyc/verify`, {
+    method: 'POST',
+    body: JSON.stringify({ notes })
+  }),
+  rejectClientKyc: (clientId, reason) => fetchWithAuth(`/clients/${clientId}/kyc/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason })
+  }),
   updateMyClientProfile: (profileData) => fetchWithAuth('/clients/me/profile', {
     method: 'PUT',
     body: JSON.stringify(profileData)
@@ -581,7 +595,17 @@ export const api = {
   }),
 
   // Payment Schedule
-  getPaymentSchedule: (loanId) => fetchWithAuth(`/payment-schedule/loan/${loanId}`),
+  getPaymentSchedule: async (loanId) => {
+    const data = await fetchWithAuth(`/payment-schedule/loan/${loanId}`);
+    if (Array.isArray(data)) {
+      return { schedule: data, penalty_schedule: null };
+    }
+    return {
+      schedule: Array.isArray(data?.schedule) ? data.schedule : [],
+      penalty_schedule: data?.penalty_schedule || null
+    };
+  },
+  getLoanPenaltySchedule: (loanId) => fetchWithAuth(`/payment-schedule/loan/${loanId}/penalties`),
   generatePaymentSchedule: (scheduleData) => fetchWithAuth('/payment-schedule/generate', {
     method: 'POST',
     body: JSON.stringify(scheduleData)
@@ -598,7 +622,18 @@ export const api = {
   downloadLoanStatementPdf: (loanId) => fetchBlobWithAuth(`/statements/loan/${loanId}/download?format=pdf`),
   downloadSavingsStatementPdf: (accountId) => fetchBlobWithAuth(`/statements/savings/${accountId}/download?format=pdf`),
   downloadTransactionStatementPdf: (transactionId) => fetchBlobWithAuth(`/statements/transaction/${transactionId}/download?format=pdf`),
-  downloadTransactionStatementCsv: (transactionId) => fetchBlobWithAuth(`/statements/transaction/${transactionId}/download?format=csv`)
+  downloadTransactionStatementCsv: (transactionId) => fetchBlobWithAuth(`/statements/transaction/${transactionId}/download?format=csv`),
+
+  // Contact us
+  submitContactMessage: (payload) => fetchWithAuth('/contact', {
+    method: 'POST',
+    body: JSON.stringify(payload || {})
+  }),
+  getContactMessages: () => fetchWithAuth('/contact'),
+  resolveContactMessage: (id, resolutionNotes) => fetchWithAuth(`/contact/${id}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ resolution_notes: resolutionNotes })
+  })
 };
 
 export default api;

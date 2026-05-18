@@ -50,8 +50,9 @@ Edekise Microfinance`;
               to: payment.email,
               subject,
               text,
-              category: 'repayment_reminder',
-              metadata: { loan_id: payment.loan_id, due_date: payment.due_date, days_before: days }
+              category: 'payment_reminder',
+              clientId: payment.client_id,
+              metadata: { loan_id: payment.loan_id, due_date: payment.due_date, days_before: days, client_id: payment.client_id }
             });
             await sendSmsReminder(payment, days);
           }
@@ -79,8 +80,9 @@ Edekise Microfinance`;
           to: payment.email,
           subject: `Payment Due Today - Loan ${payment.loan_id}`,
           text: `Dear ${payment.client_name}, your payment of ${payment.total_amount} ETB is due today (${payment.due_date}).`,
-          category: 'repayment_due_today',
-          metadata: { loan_id: payment.loan_id, due_date: payment.due_date }
+          category: 'payment_reminder',
+          clientId: payment.client_id,
+          metadata: { loan_id: payment.loan_id, due_date: payment.due_date, client_id: payment.client_id }
         });
         await sendSmsReminder(payment, 0);
       }
@@ -151,8 +153,9 @@ Edekise Microfinance Team`;
     to: payment.email,
     subject,
     text,
-    category: 'repayment_missed',
-    metadata: { loan_id: payment.loan_id, due_date: payment.due_date }
+    category: 'payment_reminder',
+    clientId: payment.client_id,
+    metadata: { loan_id: payment.loan_id, due_date: payment.due_date, client_id: payment.client_id }
   });
 
   // Send SMS for late payment

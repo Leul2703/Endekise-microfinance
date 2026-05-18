@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { User, Mail, Phone, MapPin, Camera, Save, Lock, Bell, Upload, FileText, AlertCircle, BadgeCheck, ShieldCheck, FolderOpen } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Save, Lock, Bell, Upload, FileText, AlertCircle, BadgeCheck, ShieldCheck, FolderOpen, PiggyBank } from 'lucide-react';
 import '../admin/AdminPages.css';
 import './ClientPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { formatPhoneInput, validateEmail, validateEthiopianPhone, validatePasswordStrength } from '../../utils/validation';
+
+const EMOJI_REGEX = /\p{Extended_Pictographic}/gu;
+const stripEmojis = (value) => String(value || '').replace(EMOJI_REGEX, '');
+const hasEmoji = (value) => /\p{Extended_Pictographic}/u.test(String(value || ''));
 
 const EMPTY_PROFILE = {
   id: '',
@@ -98,6 +103,7 @@ const Profile = () => {
     smsNotifications: true,
     paymentReminders: true
   });
+  const [depositObligations, setDepositObligations] = useState([]);
 
   useEffect(() => {
     fetchProfile();
@@ -111,8 +117,20 @@ const Profile = () => {
       setProfile(mappedProfile);
       setOriginalProfile(deepClone(mappedProfile));
       setKycStatus(client?.kyc_status || 'Pending');
-      const docs = await api.getDocuments().catch(() => []);
+      const prefs = client?.notification_preferences || {};
+      const loadedNotifications = {
+        emailNotifications: prefs.emailNotifications !== false,
+        smsNotifications: prefs.smsNotifications !== false,
+        paymentReminders: prefs.paymentReminders !== false
+      };
+      setNotifications(loadedNotifications);
+      setOriginalNotifications(deepClone(loadedNotifications));
+      const [docs, depositData] = await Promise.all([
+        api.getDocuments().catch(() => []),
+        api.getMyDepositSchedule().catch(() => ({ obligations: [] }))
+      ]);
       setDocuments(Array.isArray(docs) ? docs : []);
+      setDepositObligations(Array.isArray(depositData?.obligations) ? depositData.obligations : []);
     } catch (error) {
       console.error('Error loading client profile:', error);
       showError(error.message || 'Failed to load client profile');
@@ -123,9 +141,16 @@ const Profile = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === 'phone') {
+      setProfile((current) => ({
+        ...current,
+        [name]: formatPhoneInput(value)
+      }));
+      return;
+    }
     setProfile((current) => ({
       ...current,
-      [name]: value
+      [name]: stripEmojis(value)
     }));
   };
 
@@ -141,14 +166,52 @@ const Profile = () => {
       warning('First name is required');
       return;
     }
+    if (!String(profile.email || '').trim()) {
+      warning('Email is required.');
+      return;
+    }
+    const emailErr = validateEmail(profile.email);
+    const phoneErr = validateEthiopianPhone(profile.phone, { required: true });
+    if (emailErr) {
+      warning(emailErr);
+      return;
+    }
+    if (phoneErr) {
+      warning(phoneErr);
+      return;
+    }
+    if (
+      hasEmoji(profile.firstName) ||
+      hasEmoji(profile.lastName) ||
+      hasEmoji(profile.email) ||
+      hasEmoji(profile.phone) ||
+      hasEmoji(profile.address) ||
+      hasEmoji(profile.idNumber) ||
+      hasEmoji(profile.groupId)
+    ) {
+      warning('Emoji characters are not allowed.');
+      return;
+    }
 
     setSaving(true);
     try {
-      const response = await api.updateMyClientProfile(profile);
+      const response = await api.updateMyClientProfile({
+        ...profile,
+        emailNotifications: notifications.emailNotifications,
+        smsNotifications: notifications.smsNotifications,
+        paymentReminders: notifications.paymentReminders
+      });
       const updatedProfile = mapClientToProfile(response.client);
       setProfile(updatedProfile);
       setOriginalProfile(deepClone(updatedProfile));
-      setOriginalNotifications(deepClone(notifications));
+      const prefs = response.client?.notification_preferences || {};
+      const savedNotifications = {
+        emailNotifications: prefs.emailNotifications !== false,
+        smsNotifications: prefs.smsNotifications !== false,
+        paymentReminders: prefs.paymentReminders !== false
+      };
+      setNotifications(savedNotifications);
+      setOriginalNotifications(deepClone(savedNotifications));
       success('Client profile saved successfully');
     } catch (error) {
       console.error('Error saving client profile:', error);
@@ -202,6 +265,14 @@ const Profile = () => {
   const hasNotificationChanges = JSON.stringify(notifications) !== JSON.stringify(originalNotifications);
   const hasChanges = hasProfileChanges || hasNotificationChanges;
   const completedProfileChecks = [profile.phone, profile.idNumber, profile.address, profile.incomeSource].filter(Boolean).length;
+  const kycChecklist = [
+    { label: 'Phone number', done: Boolean(profile.phone) },
+    { label: 'National ID', done: Boolean(profile.idNumber) },
+    { label: 'Address', done: Boolean(profile.address) },
+    { label: 'Income source', done: Boolean(profile.incomeSource) },
+    { label: 'KYC document uploaded', done: documents.length > 0 },
+    { label: 'Staff verification', done: kycStatus === 'Verified' }
+  ];
 
   const handlePasswordChange = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
@@ -211,6 +282,13 @@ const Profile = () => {
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       warning('New password and confirmation do not match');
+      return;
+    }
+
+    const strengthErrors = validatePasswordStrength(passwordData.newPassword);
+    if (strengthErrors.length > 0) {
+      setPasswordErrors(strengthErrors);
+      warning('Password does not meet complexity requirements');
       return;
     }
 
@@ -293,6 +371,44 @@ const Profile = () => {
             </div>
           </div>
 
+          {kycStatus !== 'Verified' && (
+            <section className="profile-kyc-banner">
+              <AlertCircle size={20} />
+              <div>
+                <strong>KYC verification {kycStatus === 'Rejected' ? 'required again' : 'in progress'}</strong>
+                <p>Complete the checklist below. A branch manager will verify your identity before all services are enabled.</p>
+                <ul className="kyc-checklist">
+                  {kycChecklist.map((item) => (
+                    <li key={item.label} className={item.done ? 'done' : ''}>{item.label}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
+
+          {depositObligations.length > 0 && (
+            <section className="profile-section profile-section-standalone">
+              <div className="section-header">
+                <PiggyBank size={24} />
+                <h2>Monthly deposit schedule</h2>
+              </div>
+              <div className="mobile-card-list profile-deposit-list">
+                {depositObligations.slice(0, 6).map((row) => (
+                  <div className="schedule-mobile-card" key={row.id}>
+                    <div className="schedule-mobile-card-header">
+                      <strong>{row.account_type || 'Savings'}</strong>
+                      <span className={`status ${row.status === 'paid' ? 'active' : row.status === 'missed' ? 'high' : 'pending'}`}>
+                        {row.status}
+                      </span>
+                    </div>
+                    <div className="schedule-mobile-row"><span>Due</span><span>{row.due_date}</span></div>
+                    <div className="schedule-mobile-row"><span>Required</span><strong>{Number(row.required_amount || 0).toLocaleString()} ETB</strong></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="profile-container">
           <div className="profile-sidebar">
             <div className="profile-photo">
@@ -350,14 +466,14 @@ const Profile = () => {
                   <label>Email Address</label>
                   <div className="input-with-icon">
                     <Mail size={18} />
-                    <input type="email" name="email" value={profile.email} onChange={handleChange} />
+                    <input type="email" name="email" value={profile.email} onChange={handleChange} required />
                   </div>
                 </div>
                 <div className="form-group">
                   <label>Phone Number</label>
                   <div className="input-with-icon">
                     <Phone size={18} />
-                    <input type="tel" name="phone" value={profile.phone} onChange={handleChange} />
+                    <input type="tel" name="phone" inputMode="numeric" value={profile.phone} onChange={handleChange} />
                   </div>
                 </div>
                 <div className="form-group">
@@ -532,8 +648,8 @@ const Profile = () => {
                 </div>
                 <div className="preference-item">
                   <div className="preference-info">
-                    <h3>Payment Reminders</h3>
-                    <p>Get notified before payment due dates</p>
+                    <h3>Payment & deposit reminders</h3>
+                    <p>Loan payments and monthly savings deposit due dates</p>
                   </div>
                   <label className="toggle-switch">
                     <input
@@ -563,12 +679,17 @@ const Profile = () => {
                   </select>
                 </div>
                 <div className="form-group full-width">
-                  <label>Choose File</label>
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
-                    onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
-                  />
+                  <label>Choose file</label>
+                  <label className="file-input-label">
+                    <Upload size={18} />
+                    {selectedFile ? selectedFile.name : 'Select PDF or JPEG'}
+                    <input
+                      type="file"
+                      className="file-input-hidden"
+                      accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                      onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                    />
+                  </label>
                 </div>
               </div>
               <div className="profile-actions" style={{ marginTop: '1rem' }}>
@@ -578,7 +699,20 @@ const Profile = () => {
                 </button>
               </div>
 
-              <div className="table-container" style={{ marginTop: '1.5rem' }}>
+              <div className="mobile-card-list profile-docs-mobile" style={{ marginTop: '1.5rem' }}>
+                {documents.length === 0 ? (
+                  <p className="profile-empty-docs">No documents uploaded yet.</p>
+                ) : documents.map((document) => (
+                  <div className="mobile-record-card" key={document.id}>
+                    <div className="mobile-record-header">
+                      <strong>{document.type || 'Document'}</strong>
+                      <span className="status pending">{document.status || 'Pending'}</span>
+                    </div>
+                    <p className="mobile-record-meta">{document.id}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="table-container desktop-table-only" style={{ marginTop: '1.5rem' }}>
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -588,16 +722,7 @@ const Profile = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {documents.length === 0 ? (
-                      <tr>
-                        <td colSpan="3" style={{ textAlign: 'center', padding: '1.5rem' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <FileText size={18} />
-                            No documents uploaded yet
-                          </div>
-                        </td>
-                      </tr>
-                    ) : documents.map((document) => (
+                    {documents.map((document) => (
                       <tr key={document.id}>
                         <td>{document.id}</td>
                         <td>{document.type}</td>

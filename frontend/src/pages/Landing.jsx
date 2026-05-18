@@ -18,6 +18,7 @@ const Landing = () => {
         <div className="nav-actions">
           <button className="btn-ghost" onClick={() => navigate('/register')}>Register</button>
           <button className="btn-ghost" onClick={() => navigate('/login')}>Sign In</button>
+          <button className="btn-ghost" onClick={() => navigate('/contact')}>Contact Us</button>
           <button className="btn-primary" onClick={() => navigate('/login')}>
             Get Started
             <ArrowRight size={18} />
@@ -234,6 +235,7 @@ const Landing = () => {
             <h4>Quick Links</h4>
             <a href="#features">Features</a>
             <a href="#services">Services</a>
+            <button type="button" className="footer-link-button" onClick={() => navigate('/contact')}>Contact us</button>
           </div>
           <div className="footer-section">
             <h4>Services</h4>

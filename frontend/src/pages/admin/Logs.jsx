@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, AlertCircle, User, Clock, FileText, RefreshCw, AlertTriangle } from 'lucide-react';
 import './AdminPages.css';
 import api from '../../utils/api';
+import { formatDateTime } from '../../utils/dateTime';
+import { useNavigate } from 'react-router-dom';
 
 const Logs = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('all');
   const [logs, setLogs] = useState([]);
@@ -203,6 +206,11 @@ const Logs = () => {
         <div>
           <h1>Audit Trail Logs</h1>
           <p>View system audit logs for compliance and security monitoring</p>
+          <div style={{ marginTop: '0.75rem' }}>
+            <button className="btn-secondary" type="button" onClick={() => navigate(-1)}>
+              Back
+            </button>
+          </div>
         </div>
         <button 
           className="btn-secondary" 
@@ -307,7 +315,7 @@ const Logs = () => {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <Clock size={16} />
-                      {log.timestamp}
+                      {formatDateTime(log.timestamp)}
                     </div>
                   </td>
                 </tr>

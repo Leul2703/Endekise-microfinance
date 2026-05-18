@@ -1,6 +1,6 @@
 .loans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -219,7 +219,7 @@
 
 .savings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -491,8 +491,9 @@
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 26px;
+  width: 52px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -516,10 +517,10 @@
 .slider:before {
   position: absolute;
   content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
   background-color: white;
   transition: 0.3s;
   border-radius: 50%;
@@ -581,6 +582,11 @@ input:checked + .slider:before {
 .status.high {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.status.partial {
+  background: #ffedd5;
+  color: #c2410c;
 }
 
 .stat-card {
@@ -940,6 +946,33 @@ input:checked + .slider,
   padding: 1.5rem;
 }
 
+.client-layout .admin-page .loan-card,
+.client-layout .admin-page .savings-card,
+.client-layout .admin-page .summary-card,
+.client-layout .admin-page .profile-sidebar,
+.client-layout .admin-page .profile-section,
+.client-layout .admin-page .client-upload-card {
+  border: 1px solid #dbe6f3;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.client-layout .admin-page .loan-info h3,
+.client-layout .admin-page .savings-info h3,
+.client-layout .admin-page .table-header h2,
+.client-layout .admin-page .section-header h2 {
+  letter-spacing: -0.01em;
+}
+
+.client-layout .admin-page .loan-payment,
+.client-layout .admin-page .client-hero-card {
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+}
+
+.client-layout .admin-page .btn-secondary {
+  border-color: #d4deea;
+}
+
 @media (max-width: 768px) {
   .client-hero-card,
   .client-hero-actions {
@@ -1042,8 +1075,233 @@ input:checked + .slider,
     height: 96px;
   }
 
-  .client-layout .admin-page .form-grid,
   .client-layout .admin-page .profile-container {
     grid-template-columns: 1fr;
+  }
+
+  /* Client dashboard (uses .dashboard, not .admin-page) */
+  .client-layout .dashboard .section-header-with-action,
+  .client-layout .dashboard .client-spotlight-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .client-layout .dashboard .section-header-with-action .btn-sm,
+  .client-layout .dashboard .client-spotlight-actions .action-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .client-layout .dashboard .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .client-layout .dashboard .data-table {
+    min-width: 520px;
+  }
+
+  .client-layout .dashboard .modal-content,
+  .client-layout .dashboard .modal {
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
+    margin: 0.75rem;
+  }
+
+  .client-layout .dashboard .mobile-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .client-layout .admin-page .mobile-card-list,
+  .client-layout .dashboard .mobile-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .client-layout .admin-page .desktop-table-only,
+  .client-layout .dashboard .desktop-table-only {
+    display: none;
+  }
+
+  .mobile-record-card,
+  .schedule-mobile-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
+
+  .mobile-record-header,
+  .schedule-mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .mobile-record-meta {
+    margin: 0.25rem 0;
+    color: #64748b;
+    font-size: 0.875rem;
+  }
+
+  .mobile-record-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .schedule-mobile-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    padding: 0.25rem 0;
+  }
+
+  .client-layout .admin-page .toggle-switch,
+  .client-layout .dashboard .toggle-switch {
+    min-width: 52px;
+    min-height: 32px;
+  }
+
+  .client-layout .admin-page .toggle-switch .slider,
+  .client-layout .dashboard .toggle-switch .slider {
+    min-height: 32px;
+  }
+
+  .client-layout .admin-page .btn-primary,
+  .client-layout .admin-page .btn-secondary,
+  .client-layout .dashboard .btn-primary,
+  .client-layout .dashboard .btn-secondary,
+  .client-layout .dashboard .action-btn {
+    min-height: 44px;
+  }
+}
+
+.mobile-card-list {
+  display: none;
+}
+
+.profile-kyc-banner {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border-radius: 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.profile-kyc-banner p {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.kyc-checklist {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.kyc-checklist li.done {
+  color: #047857;
+  list-style-type: '✓ ';
+}
+
+.profile-section-standalone {
+  margin-bottom: 1.25rem;
+  padding: 1.25rem;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.file-input-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.file-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.profile-empty-docs {
+  color: #64748b;
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+.profile-deposit-list,
+.profile-docs-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .profile-deposit-list,
+  .profile-docs-mobile {
+    display: flex;
+  }
+
+  .profile-container {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-sidebar {
+    position: static;
+  }
+
+  .profile-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: linear-gradient(180deg, transparent, #f1f5f9 24%, #f1f5f9);
+    padding-top: 1rem;
+    margin: 0 -0.25rem;
+  }
+
+  .preference-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+}
+
+.desktop-table-only {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .admin-page .mobile-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .admin-page .desktop-table-only {
+    display: none;
   }
 }

@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { db } = require('../config/database');
 const { sendInterestCreditEmail } = require('../utils/emailService');
+const { shouldAccrueInterest } = require('../utils/growthTermDeposits');
 
 // Run on the last day of every month at 11:59 PM to calculate monthly interest
 cron.schedule('59 23 28-31 * *', () => {
@@ -42,7 +43,13 @@ function calculateMonthlyInterest() {
 }
 
 // Calculate interest for a single account
-function calculateAccountInterest(account) {
+async function calculateAccountInterest(account) {
+  const canAccrue = await shouldAccrueInterest(account);
+  if (!canAccrue) {
+    console.log(`[INTEREST SCHEDULER] Skipping account ${account.id} - interest accrual paused (missed Growth Term deposit)`);
+    return;
+  }
+
   const interestRate = account.interest_rate || 0;
   const balance = Number(account.amount || 0);
   

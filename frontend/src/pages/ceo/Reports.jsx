@@ -3,10 +3,12 @@ import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useEffect, useMemo, useState } from 'react';
 import { formatDateTime } from '../../utils/dateTime';
+import { useNavigate } from 'react-router-dom';
 
 const formatCurrency = (value) => `${(Number(value || 0) / 1000000).toFixed(1)}M ETB`;
 
 const Reports = () => {
+  const navigate = useNavigate();
   const [reportData, setReportData] = useState(null);
   const [riskData, setRiskData] = useState(null);
   const [complianceData, setComplianceData] = useState(null);
@@ -98,6 +100,12 @@ const Reports = () => {
       <div className="page-header">
         <h1>Reports</h1>
         <p>Operational, risk, and compliance reporting for executive oversight.</p>
+        <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="btn-secondary" type="button" onClick={() => navigate(-1)}>
+            Back
+          </button>
+          <span className="inline-meta">Available reports: {filteredReports.length}</span>
+        </div>
       </div>
 
       <div className="stats-grid">
@@ -115,7 +123,7 @@ const Reports = () => {
         ))}
       </div>
 
-      <div className="page-actions">
+      <div className="page-actions sticky-actions">
         <div className="filter-dropdown">
           <Filter size={20} />
           <select value={filterType} onChange={(event) => setFilterType(event.target.value)}>
@@ -134,24 +142,29 @@ const Reports = () => {
       </div>
 
       <div className="table-container" style={{ marginBottom: '2rem' }}>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Report ID</th>
-              <th>Report Name</th>
-              <th>Period</th>
-              <th>Generated</th>
-              <th>Type</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredReports.map((report) => (
-              <tr key={report.id}>
+        {filteredReports.length === 0 ? (
+          <div className="empty-state">
+            <p>No reports available for the selected type.</p>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Report ID</th>
+                <th>Report Name</th>
+                <th>Period</th>
+                <th>Generated</th>
+                <th>Type</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredReports.map((report) => (
+                <tr key={report.id}>
                 <td>{report.id}</td>
                 <td>{report.name}</td>
                 <td>{report.period}</td>
-                <td>{report.generated}</td>
+                <td>{formatDateTime(report.generated)}</td>
                 <td><span className="role-badge">{report.type}</span></td>
                 <td>
                   <button className="btn-icon edit" title="View" onClick={() => handleViewReport(report)}>
@@ -161,10 +174,11 @@ const Reports = () => {
                     <Download size={18} />
                   </button>
                 </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="stats-grid" style={{ marginBottom: '2rem' }}>

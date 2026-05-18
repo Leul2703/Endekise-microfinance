@@ -5,6 +5,7 @@ import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { io } from 'socket.io-client';
 import { formatDateOnly } from '../../utils/dateTime';
+import { getInstallmentRemainingFromRow, formatScheduleAmount } from '../../utils/paymentSchedule';
 
 const LOAN_TYPE_CONFIG = {
   'Micro Enterprise Loan': {
@@ -95,7 +96,8 @@ const LoanManagement = () => {
     gender: '',
     id_number: '',
     income_source: '',
-    initialBalance: ''
+    initialBalance: '',
+    kycFile: null
   });
   const [loans, setLoans] = useState([]);
   const [savingsAccounts, setSavingsAccounts] = useState([]);
@@ -126,6 +128,7 @@ const LoanManagement = () => {
   }, [newLoanData.type, newLoanData.interestRate]);
 
   const [paymentSchedule, setPaymentSchedule] = useState([]);
+  const [penaltyScheduleInfo, setPenaltyScheduleInfo] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState('');
   const [generatingSchedule, setGeneratingSchedule] = useState(false);
@@ -225,9 +228,11 @@ const LoanManagement = () => {
     setScheduleLoading(true);
     setScheduleError('');
     setPaymentSchedule([]);
+    setPenaltyScheduleInfo(null);
     try {
-      const data = await api.getPaymentSchedule(loan.id);
-      setPaymentSchedule(Array.isArray(data) ? data : []);
+      const { schedule, penalty_schedule: penaltyInfo } = await api.getPaymentSchedule(loan.id);
+      setPaymentSchedule(schedule);
+      setPenaltyScheduleInfo(penaltyInfo);
     } catch (err) {
       console.error('Error loading payment schedule:', err);
       setScheduleError(err.message || 'Failed to load payment schedule');
@@ -526,10 +531,46 @@ const LoanManagement = () => {
         income_source: newClientData.income_source
       });
 
-      const accountResult = await api.createClientSavingsAccount(clientResult.client.id, {
+      const clientId = clientResult.client.id;
+
+      if (newClientData.kycFile) {
+        const formData = new FormData();
+        formData.append('file', newClientData.kycFile);
+        formData.append('client_id', clientId);
+        formData.append('type', 'National ID');
+        await api.uploadDocument(formData);
+      }
+
+      try {
+        await api.submitClientKyc(clientId);
+      } catch (kycErr) {
+        console.warn('KYC submit:', kycErr?.message);
+      }
+
+      let accountResult = null;
+      try {
+        accountResult = await api.createClientSavingsAccount(clientId, {
         initial_balance: parseFloat(newClientData.initialBalance),
         type: 'Passbook Saving'
-      });
+        });
+      } catch (accountErr) {
+        if (accountErr?.message?.includes('KYC') || accountErr?.code === 'KYC_NOT_VERIFIED') {
+          warning('Client registered and KYC submitted. A branch manager must verify KYC before a savings account can be opened.');
+          setNewClientData({
+            name: '',
+            email: '',
+            phone: '',
+            address: '',
+            gender: '',
+            id_number: '',
+            income_source: '',
+            initialBalance: '',
+            kycFile: null
+          });
+          return;
+        }
+        throw accountErr;
+      }
 
       const refreshedAccounts = await api.getSavingsAccounts(newClientData.name);
       setSavingsAccounts(refreshedAccounts);
@@ -558,8 +599,13 @@ const LoanManagement = () => {
         gender: '',
         id_number: '',
         income_source: '',
-        initialBalance: ''
+        initialBalance: '',
+        kycFile: null
       });
+
+      if (clientResult.requires_kyc_verification) {
+        warning('Client registered with Pending KYC. Branch manager verification is required before loan activation.');
+      }
 
       if (accountResult?.requires_approval) {
         success(`Client registered. Savings account is pending checker approval (${accountResult.approval_request_id}) before loan creation can continue.`);
@@ -823,6 +869,18 @@ const LoanManagement = () => {
                   No generated payment schedule found yet for this loan.
                 </p>
               ) : (
+                <>
+                {penaltyScheduleInfo && (
+                  <div className="info-card" style={{ marginTop: '1rem', marginBottom: '0.75rem' }}>
+                    <AlertTriangle size={18} />
+                    <span>
+                      Late penalty: {penaltyScheduleInfo.penalty_rate_percent}% of installment when overdue.
+                      {Number(penaltyScheduleInfo.total_penalty_outstanding) > 0
+                        ? ` Outstanding penalties: ${Number(penaltyScheduleInfo.total_penalty_outstanding).toLocaleString()} ETB.`
+                        : ''}
+                    </span>
+                  </div>
+                )}
                 <div className="table-container" style={{ marginTop: '1rem' }}>
                   <table className="data-table">
                     <thead>
@@ -832,29 +890,48 @@ const LoanManagement = () => {
                         <th>Principal</th>
                         <th>Interest</th>
                         <th>Total</th>
-                        <th>Balance Remaining</th>
+                        <th>Penalty</th>
+                        <th>Paid</th>
+                        <th>Remaining Due</th>
                         <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paymentSchedule.map((item, idx) => (
+                      {paymentSchedule.map((item, idx) => {
+                        const installmentRemaining = getInstallmentRemainingFromRow(item);
+                        return (
                         <tr key={item.id || `${item.loan_id}-${idx}`}>
                           <td>{idx + 1}</td>
                           <td>{formatDateOnly(item.due_date)}</td>
                           <td>{Number(item.principal_amount || 0).toLocaleString()} ETB</td>
                           <td>{Number(item.interest_amount || 0).toLocaleString()} ETB</td>
                           <td>{Number(item.total_amount || 0).toLocaleString()} ETB</td>
-                          <td>{Number(item.balance_remaining || 0).toLocaleString()} ETB</td>
+                          <td>{Number(item.penalty_amount || 0) > 0 ? formatScheduleAmount(item.penalty_amount) : '—'}</td>
+                          <td>{Number(item.paid_amount || 0) > 0 ? formatScheduleAmount(item.paid_amount) : '—'}</td>
                           <td>
-                            <span className={`status ${item.status === 'Paid' ? 'active' : item.status === 'Overdue' ? 'high' : 'pending'}`}>
-                              {item.status}
+                            {installmentRemaining > 0
+                              ? formatScheduleAmount(installmentRemaining)
+                              : '—'}
+                          </td>
+                          <td>
+                            <span className={`status ${
+                              item.status === 'Paid' ? 'active'
+                              : item.status === 'Overdue' ? 'high'
+                              : item.status === 'Partial' ? 'partial'
+                              : 'pending'
+                            }`}>
+                              {item.status === 'Partial' && installmentRemaining != null
+                                ? `Partial (${formatScheduleAmount(installmentRemaining)} due)`
+                                : item.status}
                             </span>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
               <div className="modal-actions">
                 <button className="btn-primary" onClick={handleGenerateSchedule} disabled={generatingSchedule}>
@@ -1069,8 +1146,16 @@ const LoanManagement = () => {
                         placeholder="Enter opening savings balance"
                       />
                     </div>
+                    <div className="form-group">
+                      <label>KYC document (National ID scan)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                        onChange={(e) => setNewClientData({ ...newClientData, kycFile: e.target.files?.[0] || null })}
+                      />
+                    </div>
                     <p style={{ margin: '0 0 1rem 0', color: '#92400e', fontSize: '0.9rem' }}>
-                      Savings accounts created here may wait in the approval queue before the loan application can continue.
+                      New clients require KYC verification by a branch manager before savings accounts and loans can proceed.
                     </p>
                     <button className="btn-secondary" onClick={handleRegisterSavingsClient} disabled={creatingClient}>
                       {creatingClient ? 'Registering...' : 'Register New Savings Client'}
@@ -1087,6 +1172,12 @@ const LoanManagement = () => {
                   </div>
                 </div>
               )}
+              <div className="info-card" style={{ marginBottom: '1rem' }}>
+                <AlertTriangle size={18} />
+                <span>
+                  Loan approval requires savings balance of at least 30% of the requested loan amount and at least one supporting document uploaded.
+                </span>
+              </div>
               <div className="form-group">
                 <label>Loan Type</label>
                 <select

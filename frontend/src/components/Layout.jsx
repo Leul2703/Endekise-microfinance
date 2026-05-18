@@ -39,6 +39,7 @@ const Layout = () => {
       { icon: Users, labelKey: 'nav_client_management', path: '/admin/clients' },
       { icon: DollarSign, labelKey: 'nav_manage_accounts', path: '/admin/accounts' },
       { icon: Key, labelKey: 'nav_unlock_requests', path: '/admin/unlock-requests' },
+      { icon: ShieldCheck, labelKey: 'nav_compliance_view', path: '/admin/compliance' },
       { icon: FileText, labelKey: 'nav_view_logs', path: '/admin/logs' },
       { icon: Settings, labelKey: 'nav_settings', path: '/admin/settings' },
     ],
@@ -62,6 +63,7 @@ const Layout = () => {
     ceo: [
       { icon: BarChart3, labelKey: 'nav_dashboard', path: '/ceo' },
       { icon: Users, labelKey: 'nav_user_accounts', path: '/ceo/users' },
+      { icon: DollarSign, labelKey: 'nav_loan_approvals', path: '/ceo/loans' },
       { icon: FileText, labelKey: 'nav_reports', path: '/ceo/reports' },
       { icon: Building2, labelKey: 'nav_branch_overview', path: '/ceo/branches' },
       { icon: DollarSign, labelKey: 'nav_balance_management', path: '/ceo/balance-management' },

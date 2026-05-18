@@ -256,6 +256,32 @@
   background: white;
 }
 
+.password-toggle {
+  position: absolute;
+  right: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.password-toggle:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .form-group select {
   padding-left: 0.75rem;
   cursor: pointer;
@@ -266,6 +292,11 @@
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input[type="password"],
+.form-group input[type="text"] {
+  padding-right: 2.9rem;
 }
 
 .login-button {
@@ -331,6 +362,20 @@
   font-family: monospace;
   font-size: 0.8rem;
   color: #0369a1;
+}
+
+.input-invalid {
+  border-color: #dc2626 !important;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.field-hint.error {
+  color: #dc2626;
 }
 
 .login-footer {
@@ -482,7 +527,7 @@
   .form-group input,
   .form-group select {
     font-size: 0.95rem;
-    padding: 0.65rem 0.65rem 0.65rem 2.25rem;
+    padding: 0.65rem 2.75rem 0.65rem 2.25rem;
   }
 
   .input-icon {

@@ -6,6 +6,13 @@
     linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
 }
 
+:root {
+  --surface-card: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  --surface-border: #dbe6f3;
+  --surface-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  --text-muted: #64748b;
+}
+
 .sidebar-backdrop {
   display: none;
 }
@@ -296,6 +303,12 @@
   overflow-y: auto;
 }
 
+.content .admin-page,
+.content .dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
 .desktop-layout .sidebar {
   transform: none;
 }
@@ -386,5 +399,10 @@
 
   .client-layout .content {
     padding: 1rem;
+  }
+
+  .content .admin-page,
+  .content .dashboard {
+    max-width: 100%;
   }
 }

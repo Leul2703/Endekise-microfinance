@@ -32,12 +32,16 @@ router.get('/loan-types', (req, res) => {
 
 router.get('/email/status', async (req, res) => {
   const smtpCheck = await testEmailConfig();
+  const smtpHost = process.env.EMAIL_HOST || process.env.MAIL_HOST || 'smtp-relay.brevo.com';
+  const smtpPort = process.env.EMAIL_PORT || process.env.MAIL_PORT || 587;
+  const smtpSecure = process.env.EMAIL_SECURE ?? process.env.MAIL_SECURE ?? String(Number(smtpPort) === 465);
 
   res.json({
     smtp: {
       configured: Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS),
-      host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
-      port: process.env.EMAIL_PORT || 587,
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
       from: process.env.EMAIL_FROM || process.env.SMTP_FROM || null,
       verify: smtpCheck
     },

@@ -79,7 +79,7 @@ const Transactions = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/clients/accounts/${accountId}/deposit`, {
+      const res = await fetch(`http://192.168.137.1:5000/api/clients/accounts/${accountId}/deposit`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -113,7 +113,7 @@ const Transactions = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/clients/accounts/${accountId}/withdraw`, {
+      const res = await fetch(`http://192.168.137.1:5000/api/clients/accounts/${accountId}/withdraw`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -147,7 +147,7 @@ const Transactions = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/clients/accounts/${accountId}/interest`, {
+      const res = await fetch(`http://192.168.137.1:5000/api/clients/accounts/${accountId}/interest`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

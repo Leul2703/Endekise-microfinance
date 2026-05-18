@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import { io } from 'socket.io-client';
 import { formatDateOnly, formatDateTime } from '../../utils/dateTime';
+import { getInstallmentRemainingFromRow, formatScheduleAmount } from '../../utils/paymentSchedule';
 
 const MyLoans = () => {
   const { success, error: showError, warning } = useToast();
@@ -20,6 +21,7 @@ const MyLoans = () => {
   const [loans, setLoans] = useState([]);
   const [savings, setSavings] = useState([]);
   const [paymentSchedule, setPaymentSchedule] = useState([]);
+  const [penaltyScheduleInfo, setPenaltyScheduleInfo] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -96,8 +98,9 @@ const MyLoans = () => {
 
   const fetchPaymentSchedule = async (loanId) => {
     try {
-      const data = await api.getPaymentSchedule(loanId);
-      setPaymentSchedule(Array.isArray(data) ? data : []);
+      const { schedule, penalty_schedule: penaltyInfo } = await api.getPaymentSchedule(loanId);
+      setPaymentSchedule(schedule);
+      setPenaltyScheduleInfo(penaltyInfo);
     } catch (error) {
       console.error('Error fetching payment schedule:', error);
       setPaymentSchedule([]);
@@ -481,6 +484,48 @@ const MyLoans = () => {
                 No payment schedule found yet. The schedule appears after loan approval/activation.
               </div>
             ) : (
+              <>
+              {penaltyScheduleInfo && (
+                <div className="info-card" style={{ marginTop: '1rem' }}>
+                  <AlertCircle size={18} />
+                  <span>
+                    Late payment penalty: {penaltyScheduleInfo.penalty_rate_percent}% of installment when overdue.
+                    {Number(penaltyScheduleInfo.total_penalty_outstanding) > 0
+                      ? ` Total penalties due: ${Number(penaltyScheduleInfo.total_penalty_outstanding).toLocaleString()} ETB.`
+                      : ''}
+                  </span>
+                </div>
+              )}
+              <div className="mobile-card-list">
+                {paymentSchedule.map((payment, index) => {
+                  const installmentRemaining = getInstallmentRemainingFromRow(payment);
+                  return (
+                    <div className="schedule-mobile-card" key={`mobile-${payment.id}`}>
+                      <div className="schedule-mobile-card-header">
+                        <strong>#{index + 1} · {formatDateOnly(payment.due_date)}</strong>
+                        <span className={`status ${
+                          payment.status === 'Paid' ? 'active'
+                          : payment.status === 'Overdue' ? 'high'
+                          : payment.status === 'Partial' ? 'partial'
+                          : 'pending'
+                        }`}>
+                          {payment.status === 'Partial' && installmentRemaining > 0
+                            ? `Partial (${formatScheduleAmount(installmentRemaining)} due)`
+                            : payment.status}
+                        </span>
+                      </div>
+                      <div className="schedule-mobile-row"><span>Total</span><span>{payment.total_amount?.toFixed(2) || '0'} ETB</span></div>
+                      {Number(payment.paid_amount || 0) > 0 && (
+                        <div className="schedule-mobile-row"><span>Paid</span><span>{Number(payment.paid_amount).toFixed(2)} ETB</span></div>
+                      )}
+                      {installmentRemaining > 0 && (
+                        <div className="schedule-mobile-row"><span>Remaining</span><strong>{formatScheduleAmount(installmentRemaining)}</strong></div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="table-container desktop-table-only">
               <table className="data-table" style={{ marginTop: '1rem' }}>
                 <thead>
                   <tr>
@@ -489,28 +534,48 @@ const MyLoans = () => {
                     <th>Principal</th>
                     <th>Interest</th>
                     <th>Total</th>
-                    <th>Balance</th>
+                    <th>Penalty</th>
+                    <th>Paid</th>
+                    <th>Remaining Due</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paymentSchedule.map((payment, index) => (
+                  {paymentSchedule.map((payment, index) => {
+                    const installmentRemaining = getInstallmentRemainingFromRow(payment);
+                    return (
                     <tr key={payment.id}>
                       <td>{index + 1}</td>
                       <td>{formatDateOnly(payment.due_date)}</td>
                       <td>{payment.principal_amount?.toFixed(2) || '0'} ETB</td>
                       <td>{payment.interest_amount?.toFixed(2) || '0'} ETB</td>
                       <td>{payment.total_amount?.toFixed(2) || '0'} ETB</td>
-                      <td>{payment.balance_remaining?.toFixed(2) || '0'} ETB</td>
+                      <td>{Number(payment.penalty_amount || 0) > 0 ? `${Number(payment.penalty_amount).toFixed(2)} ETB` : '—'}</td>
+                      <td>{Number(payment.paid_amount || 0) > 0 ? `${Number(payment.paid_amount).toFixed(2)} ETB` : '—'}</td>
                       <td>
-                        <span className={`status ${payment.status === 'Paid' ? 'active' : payment.status === 'Overdue' ? 'high' : 'pending'}`}>
-                          {payment.status}
+                        {installmentRemaining > 0
+                          ? formatScheduleAmount(installmentRemaining)
+                          : '—'}
+                      </td>
+                      <td>
+                        <span className={`status ${
+                          payment.status === 'Paid' ? 'active'
+                          : payment.status === 'Overdue' ? 'high'
+                          : payment.status === 'Partial' ? 'partial'
+                          : 'pending'
+                        }`}>
+                          {payment.status === 'Partial' && installmentRemaining != null
+                            ? `Partial (${formatScheduleAmount(installmentRemaining)} due)`
+                            : payment.status}
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
+              </div>
+              </>
             )}
           </div>
         </div>

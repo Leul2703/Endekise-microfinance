@@ -10,6 +10,16 @@ const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { sendEmail } = require('../utils/emailService');
 const { auditLogger } = require('../middleware/auditLogger');
 const { validatePasswordComplexity } = require('../utils/passwordValidator');
+const {
+  validateClientRegistrationFields,
+  normalizeEthiopianPhone,
+  normalizeNationalId,
+  hasEmoji,
+  stripEmojis,
+  normalizeText,
+  normalizeEmail
+} = require('../utils/inputValidators');
+const { findDuplicateRegistration, duplicateRegistrationMessage } = require('../utils/duplicateRegistration');
 const { buildCompanyId } = require('../utils/companyId');
 const {
   buildTwoFactorResponse,
@@ -228,10 +238,6 @@ const buildRegistrationDecision = ({ payload, duplicateIdNumber = false, duplica
     recommended_action: 'Proceed with admin review and account creation workflow.'
   };
 };
-
-const normalizeText = (value) => String(value || '').trim();
-const normalizeEmail = (value) => normalizeText(value).toLowerCase();
-const normalizePhone = (value) => normalizeText(value);
 
 // Secondary authentication endpoint for sensitive operations
 router.post('/verify-secondary', authenticateToken, async (req, res) => {
@@ -670,64 +676,47 @@ router.post('/client-register', publicKycUpload.fields([
       income_source
     } = payload;
     const normalizedFullName = normalizeText(full_name);
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedPhone = normalizePhone(phone);
-    const normalizedIdNumber = normalizeText(id_number);
+    const validation = validateClientRegistrationFields({
+      ...payload,
+      full_name,
+      id_number,
+      id_type
+    });
+    if (validation.errors.length > 0) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
 
-    const duplicateName = normalizedFullName
-      ? await new Promise((resolve, reject) => {
-          db.get('SELECT id FROM clients WHERE lower(name) = lower(?)', [normalizedFullName], (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : false;
+    const normalizedEmail = validation.normalized.email;
+    const normalizedPhone = validation.normalized.phone;
+    const normalizedIdNumber = validation.normalized.id_number;
 
-    const duplicateEmail = normalizedEmail
-      ? await new Promise((resolve, reject) => {
-          db.get('SELECT id FROM clients WHERE lower(email) = ?', [normalizedEmail], (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : false;
+    const duplicateFlags = await findDuplicateRegistration({
+      name: normalizedFullName,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      id_number: normalizedIdNumber,
+      id_type
+    });
 
-    const duplicateIdNumber = id_number
-      ? await new Promise((resolve, reject) => {
-          db.get('SELECT id FROM clients WHERE id_number = ?', [id_number], (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : false;
-
-    const duplicatePhone = phone
-      ? await new Promise((resolve, reject) => {
-          db.get('SELECT id FROM clients WHERE phone = ?', [phone], (err, row) => {
-            if (err) reject(err);
-            else resolve(Boolean(row));
-          });
-        })
-      : false;
-
-    if (duplicateName || duplicateEmail || duplicatePhone || duplicateIdNumber) {
+    if (duplicateFlags.length > 0) {
       return res.status(409).json({
         decision: 'REJECT',
-        reason: 'Duplicate registration detected. Client name, email, phone, or ID already exists.',
-        flags: [
-          duplicateName ? 'RISK:DUPLICATE_NAME' : null,
-          duplicateEmail ? 'RISK:DUPLICATE_EMAIL' : null,
-          duplicatePhone ? 'RISK:DUPLICATE_PHONE' : null,
-          duplicateIdNumber ? 'RISK:DUPLICATE_ID_NUMBER' : null
-        ].filter(Boolean),
+        reason: duplicateRegistrationMessage(duplicateFlags),
+        flags: duplicateFlags.map((f) => `RISK:${f}`),
         recommended_action: 'Use existing client profile or correct duplicate identity fields.'
       });
     }
 
+    const duplicateIdNumber = duplicateFlags.some((f) => f.includes('ID'));
+    const duplicatePhone = duplicateFlags.some((f) => f.includes('PHONE'));
+
     const review = buildRegistrationDecision({
       payload: {
         ...payload,
-        id_document: idDocumentText || idDocumentPath
+        id_document: idDocumentText || idDocumentPath,
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        id_number: normalizedIdNumber
       },
       duplicateIdNumber,
       duplicatePhone
@@ -746,10 +735,10 @@ router.post('/client-register', publicKycUpload.fields([
         [
           full_name,
           normalizedEmail || null,
-          normalizedPhone || null,
+          normalizedPhone,
           address || null,
           gender || null,
-          normalizedIdNumber || null,
+          normalizedIdNumber,
           income_source || null,
           initialKycStatus,
           initialKycStatus === 'Verified' ? new Date().toISOString() : null,
@@ -778,9 +767,9 @@ router.post('/client-register', publicKycUpload.fields([
           full_name,
           gender || null,
           date_of_birth || null,
-          phone || null,
+          normalizedPhone,
           address || null,
-          id_number || null,
+          normalizedIdNumber,
           id_type || null,
           idDocumentText || idDocumentPath || null,
           idDocumentPath || null,
@@ -797,6 +786,47 @@ router.post('/client-register', publicKycUpload.fields([
         (insertErr) => (insertErr ? reject(insertErr) : resolve())
       );
     });
+
+    if (normalizedEmail) {
+      const applicantSubject = 'Registration Submitted - Edekise Microfinance';
+      const applicantText = [
+        `Dear ${full_name},`,
+        '',
+        'Your registration was submitted successfully and is now waiting for admin review.',
+        `Current status: Pending Admin Approval.`,
+        '',
+        'We will contact you once your application has been reviewed.',
+        '',
+        'Edekise Microfinance'
+      ].join('\n');
+      await sendEmail(normalizedEmail, applicantSubject, applicantText);
+    }
+
+    db.all(
+      "SELECT email FROM users WHERE role = 'admin' AND email IS NOT NULL AND trim(email) <> ''",
+      [],
+      async (emailErr, admins) => {
+        if (emailErr || !Array.isArray(admins) || admins.length === 0) return;
+        const adminSubject = `New Client Registration - ${full_name}`;
+        const adminText = [
+          `A new public client registration was submitted.`,
+          `Name: ${full_name}`,
+          `Phone: ${normalizedPhone}`,
+          `Email: ${normalizedEmail || 'Not provided'}`,
+          `Requested loan amount: ${Number(requested_loan_amount || 0).toLocaleString()} ETB`,
+          `Decision hint: ${review.decision}`,
+          `Review reason: ${review.reason}`
+        ].join('\n');
+
+        for (const admin of admins) {
+          try {
+            await sendEmail(admin.email, adminSubject, adminText);
+          } catch (sendErr) {
+            console.warn('Failed to notify admin about registration submission:', sendErr?.message || sendErr);
+          }
+        }
+      }
+    );
 
       // Note: registration review is driven by `client_registration_requests` queue (admin page).
       // We intentionally do not create a separate approval_request here to avoid schema coupling.

@@ -500,6 +500,22 @@ const schemaStatements = [
     read_status INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS customer_messages (
+    id TEXT PRIMARY KEY,
+    submitted_by_user_id INTEGER REFERENCES users(id),
+    client_id INTEGER REFERENCES clients(id),
+    name TEXT,
+    email TEXT,
+    phone TEXT,
+    category TEXT DEFAULT 'complaint',
+    subject TEXT,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'Pending',
+    assigned_to INTEGER REFERENCES users(id),
+    resolved_at TIMESTAMP,
+    resolution_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 
 const indexStatements = [
@@ -666,7 +682,13 @@ const initializeDatabase = async () => {
   await ensureColumnExists('savings_accounts', 'branch_id', 'INTEGER REFERENCES branches(id)');
   await ensureColumnExists('payment_schedule', 'principal_paid', 'NUMERIC(15, 2) DEFAULT 0');
   await ensureColumnExists('payment_schedule', 'interest_paid', 'NUMERIC(15, 2) DEFAULT 0');
+  await ensureColumnExists('clients', 'notify_email', 'INTEGER DEFAULT 1');
+  await ensureColumnExists('clients', 'notify_sms', 'INTEGER DEFAULT 1');
+  await ensureColumnExists('clients', 'notify_payment_reminders', 'INTEGER DEFAULT 1');
   await ensureColumnExists('payment_schedule', 'paid_amount', 'NUMERIC(15, 2) DEFAULT 0');
+  await ensureColumnExists('payment_schedule', 'penalty_amount', 'NUMERIC(15, 2) DEFAULT 0');
+  await ensureColumnExists('payment_schedule', 'penalty_paid', 'NUMERIC(15, 2) DEFAULT 0');
+  await ensureColumnExists('payment_schedule', 'paid_date', 'TEXT');
   await ensureColumnExists('documents', 'approval_request_id', 'TEXT');
   await ensureColumnExists('documents', 'related_entity_type', 'TEXT');
   await ensureColumnExists('documents', 'related_entity_id', 'TEXT');

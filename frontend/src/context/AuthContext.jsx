@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AuthContext = createContext(null);
-const API_BASE = 'http://localhost:5000/api/auth';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://192.168.137.1:5000/api').replace(/\/api\/?$/, '') + '/api/auth';
 const ROLE_ALIASES = {
   head_ceo: 'ceo',
   chief_executive_officer: 'ceo',
@@ -129,7 +129,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:5000/api/auth/logout', {
+      await fetch(`${API_BASE}/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

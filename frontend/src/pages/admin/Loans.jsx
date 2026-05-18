@@ -4,7 +4,7 @@ import './AdminPages.css';
 import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
-const BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+const BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://192.168.137.1:5000/api').replace(/\/api\/?$/, '');
 
 const LOAN_TYPE_CONFIG = {
   'Micro Enterprise Loan': { interestRate: 8, minAmount: 50000, maxAmount: 90000, minTermMonths: 12, maxTermMonths: 24 },

@@ -19,7 +19,10 @@ const getClientKycStatus = async (clientId) => {
     return { complete: false, status: 'Missing', missing: ['client_record'] };
   }
 
-  const documents = await queryMany('SELECT type FROM documents WHERE client_id = ?', [clientId]);
+  const documents = await queryMany(
+    'SELECT id, type, file_name, file_path, status, uploaded_at FROM documents WHERE client_id = ? ORDER BY uploaded_at DESC',
+    [clientId]
+  );
   const documentTypes = new Set(documents.map((document) => String(document.type || '').toLowerCase()));
   const missing = [];
 
@@ -28,21 +31,34 @@ const getClientKycStatus = async (clientId) => {
   if (!client.id_number && !documentTypes.has('id') && !documentTypes.has('kyc')) missing.push('identity_document');
   if (!client.income_source && !documentTypes.has('income') && !documentTypes.has('proof_of_income')) missing.push('income_source');
 
-  const complete = missing.length === 0;
+  const fieldsComplete = missing.length === 0;
+  const statusVerified = String(client.kyc_status || '').toLowerCase() === 'verified';
+  const complete = fieldsComplete && statusVerified;
+
   return {
     complete,
-    status: complete ? 'Verified' : (client.kyc_status || 'Pending'),
+    fieldsComplete,
+    statusVerified,
+    status: statusVerified ? 'Verified' : (client.kyc_status || 'Pending'),
     missing,
+    documents,
     client
   };
 };
 
 const assertClientKycEligible = async (clientId) => {
   const kyc = await getClientKycStatus(clientId);
-  if (!kyc.complete) {
+  if (!kyc.fieldsComplete) {
     const error = new Error(`KYC incomplete: missing ${kyc.missing.join(', ')}`);
     error.statusCode = 403;
     error.code = 'KYC_INCOMPLETE';
+    error.details = kyc;
+    throw error;
+  }
+  if (!kyc.statusVerified) {
+    const error = new Error('KYC verification pending. A branch manager or administrator must verify this client before account operations continue.');
+    error.statusCode = 403;
+    error.code = 'KYC_NOT_VERIFIED';
     error.details = kyc;
     throw error;
   }

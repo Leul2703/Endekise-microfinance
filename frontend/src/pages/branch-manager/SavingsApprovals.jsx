@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Eye, Search, Filter, AlertTriangle, ShieldCheck }
 import '../admin/AdminPages.css';
 import api from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { formatDateTime } from '../../utils/dateTime';
 
 const APPROVAL_TYPES = new Set(['account_creation', 'transaction_deposit', 'transaction_withdraw', 'savings_account_approval']);
 
@@ -246,6 +247,9 @@ const SavingsApprovals = () => {
       <div className="page-header">
         <h1>Approval Queue</h1>
         <p>Review savings account openings and high-value transactions that require maker-checker control.</p>
+        <div style={{ marginTop: '0.75rem' }}>
+          <span className="inline-meta">Pending requests: {filteredApprovals.length}</span>
+        </div>
       </div>
 
       <div className="stats-grid">
@@ -299,7 +303,7 @@ const SavingsApprovals = () => {
         </div>
       </div>
 
-      <div className="page-actions">
+      <div className="page-actions sticky-actions">
         <div className="search-bar">
           <Search size={20} />
           <input
@@ -320,6 +324,15 @@ const SavingsApprovals = () => {
             <option value="transaction_withdraw">Large Withdrawal</option>
           </select>
         </div>
+        <button
+          className="btn-secondary"
+          onClick={() => {
+            setSearchTerm('');
+            setFilterStatus('all');
+          }}
+        >
+          Reset Filters
+        </button>
       </div>
 
       {loading ? (
@@ -328,22 +341,27 @@ const SavingsApprovals = () => {
         </div>
       ) : (
         <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Request</th>
-                <th>Client / Account</th>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>KYC</th>
-                <th>Level</th>
-                <th>Submitted</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredApprovals.map((approval) => (
-                <tr key={approval.id}>
+          {filteredApprovals.length === 0 ? (
+            <div className="empty-state">
+              <p>No pending approval requests matched your filters.</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Request</th>
+                  <th>Client / Account</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>KYC</th>
+                  <th>Level</th>
+                  <th>Submitted</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredApprovals.map((approval) => (
+                  <tr key={approval.id}>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong>{approval.id}</strong>
@@ -368,7 +386,7 @@ const SavingsApprovals = () => {
                       {approval.approval_level?.replace('_', ' ') || 'branch manager'}
                     </span>
                   </td>
-                  <td>{approval.createdAt ? new Date(approval.createdAt).toLocaleString() : '-'}</td>
+                  <td>{formatDateTime(approval.createdAt)}</td>
                   <td>
                     <button className="btn-icon edit" title="View Details" onClick={() => handleViewDetails(approval)}>
                       <Eye size={18} />
@@ -380,14 +398,10 @@ const SavingsApprovals = () => {
                       <XCircle size={18} />
                     </button>
                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredApprovals.length === 0 && (
-            <p style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-              No pending approval requests matched your filters.
-            </p>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
